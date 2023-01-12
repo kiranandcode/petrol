@@ -9,16 +9,21 @@
 
 (maintainers "gopiandcode")
 
-(license LGPL-3.0-linking-exception)
+(license LGPL-3.0-or-later)
 
 (homepage "https://github.com/gopiandcode/petrol")
 (bug_reports "https://github.com/gopiandcode/petrol/issues")
 
 (package
  (name petrol)
- (synopsis "Petrol's an OCaml SQL API made to go FAST.")
+ (synopsis "Petrol's an OCaml SQL API made to go FAST")
  (description "Petrol is an typed embedding of SQL into OCaml integrated with Caqti and support for versioning.")
  (depends
-   ocaml dune caqti caqti-lwt caqti-driver-sqlite3)
+   ocaml
+   dune
+   (caqti (>= 1.7.0))
+   (caqti-lwt (>= 1.7.0))
+   (caqti-driver-sqlite3 (>= 1.7.0))
+ )
  (tags
   (sql)))
