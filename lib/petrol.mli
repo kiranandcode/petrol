@@ -545,12 +545,17 @@ module VersionedDatabase : sig
       is irrelevant. *)
 
   val declare_table : t ->
+    ?since:version ->
     ?constraints:[`Table] Schema.constraint_ list ->
     ?migrations:(version * migration list) list ->
     name:string -> 'a Schema.table -> table_name * 'a Expr.expr_list
-  (** [declare_table t ?constraints ?migrations ~name table_spec]
+  (** [declare_table t ?since ?constraints ?migrations ~name table_spec]
       declares a new table on the database [t] with the name
       [name].
+
+      [since] declares the first version in which this table was
+      introduced -- if omitted, Petrol assumes the table has been
+      present since the very first version.
 
       [constraints] are a list of SQL constraints on the columns of
       the table.

@@ -1,4 +1,4 @@
-(executables (names test_static_person)
+(executables (names test_static_person test_versioned_bookmark)
   (modules (:standard \ "test_utils"))
  (libraries test_utils petrol caqti caqti-lwt caqti-driver-sqlite3))
 

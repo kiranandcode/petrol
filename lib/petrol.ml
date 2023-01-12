@@ -6,14 +6,6 @@ module Request = Request
 
 type table_name = Types.table_name
 
-let _result_all : ('a, 'e) result list -> ('a list, 'e) result =
-  fun ls ->
-  let rec loop acc = function
-    | [] -> Ok (List.rev acc)
-    | Ok (h) :: t -> loop (h :: acc) t
-    | Error err :: _ -> Error err in
-  loop [] ls
-
 let result_all_unit : (unit, 'e) result list -> (unit, 'e) result =
   fun ls ->
   let rec loop = function
@@ -84,7 +76,7 @@ module StaticDatabase = struct
         (fun _key (MkTable (_, name, table, constraints)) acc ->
            List.cons (Schema.to_sql ~name table constraints) acc
         ) tables ([]: 'a list) in
-    let* _ = 
+    let* () = 
       Lwt_list.map_s (fun table_def ->
         let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
         DB.exec req ()
@@ -103,7 +95,7 @@ module VersionedDatabase = struct
   type migration = (unit, unit, [`Zero]) Caqti_request.t
 
   type wrapped_table =
-      MkTable : int * string * (version * migration list) list * 'a Schema.table * [ `Table ] Schema.constraint_ list -> wrapped_table
+      MkTable : int * string * version option * (version * migration list) list * 'a Schema.table * [ `Table ] Schema.constraint_ list -> wrapped_table
 
   type t = {
     version: version;
@@ -138,11 +130,11 @@ module VersionedDatabase = struct
     }
 
 
-  let declare_table t ?(constraints : _ list =[]) ?(migrations=[]) ~name tbl =
+  let declare_table t ?since ?(constraints : _ list =[]) ?(migrations=[]) ~name tbl =
     List.iter Schema.ensure_table_constraint constraints;
     let id = Hashtbl.length t.tables in
     let migrations = order_by_version migrations in
-    Hashtbl.add t.tables id (MkTable (id, name, migrations, tbl, constraints));
+    Hashtbl.add t.tables id (MkTable (id, name, since, migrations, tbl, constraints));
     let rec to_table : 'a . string -> 'a Schema.table -> 'a Expr.expr_list =
       fun name (type a) (table: a Schema.table) : a Expr.expr_list ->
         match table with
@@ -152,20 +144,6 @@ module VersionedDatabase = struct
           :: to_table name rest in
     let table = to_table name tbl in
     (id, name), table
-
-  let get_current_version t con =
-    let open Lwt_result.Syntax in
-    let* () = StaticDatabase.initialise t.version_db con in
-    let* res =
-      Query.select Expr.[t.version_table_field] ~from:t.version_table_name
-      |> Request.make_zero_or_one
-      |> find_opt con in
-    let version =
-      Option.map fst res
-      |> Option.map (fun s -> s |> String.split_on_char '.' |> List.map int_of_string)
-      |> Option.value ~default:t.version
-      |> Result.ok in
-    Lwt.return version
 
   let set_version t version con =
     let open Lwt_result.Syntax in
@@ -182,6 +160,21 @@ module VersionedDatabase = struct
       |> Request.make_zero
       |> exec con in
     Lwt.return_ok ()
+
+  let get_current_version t con =
+    let open Lwt_result.Syntax in
+    let* () = StaticDatabase.initialise t.version_db con in
+    let* res =
+      Query.select Expr.[t.version_table_field] ~from:t.version_table_name
+      |> Request.make_zero_or_one
+      |> find_opt con in
+    match res with
+    | None ->
+      let* () = set_version t t.version con in
+      Lwt.return_ok t.version
+    | Some (old_version, ()) ->
+      let old_version = old_version |> String.split_on_char '.' |> List.map int_of_string in
+      Lwt.return_ok old_version
 
   let migrations_needed t ((module DB: Caqti_lwt.CONNECTION) as conn) =
     let open Lwt_result.Syntax in
@@ -200,11 +193,11 @@ module VersionedDatabase = struct
       (* collect queries *)
       let table_defs =
         Hashtbl.fold
-          (fun _key (MkTable (_, name, _, table, constraints)) acc ->
+          (fun _key (MkTable (_, name,_,  _, table, constraints)) acc ->
              List.cons (Schema.to_sql ~name table constraints) acc
           ) t.tables ([]: 'a list) in
       (* execute them *)
-      let* _ = 
+      let* () = 
         Lwt_list.map_s (fun table_def ->
           let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
           DB.exec req ()
@@ -213,10 +206,27 @@ module VersionedDatabase = struct
       (* done *)
       Lwt_result.return ()
     | v when v < 0 ->           (* version on db is older, migrations needed *)
-      DB.with_transaction begin fun () -> 
+      DB.with_transaction begin fun () ->
         let migrations =
           find_migrations_to_run ~current_version t.migrations in
-        (* first run global migrations *)
+        (* first, create any tables that aren't present yet *)
+        let* () =
+          Hashtbl.to_seq_values t.tables
+          |> Lwt_seq.of_seq
+          |> Lwt_seq.map_s (fun (MkTable (_, name, since, _, table, constraints)) ->
+            match since with
+            | Some since when compare_version current_version since < 0 ->
+              let table_def = Schema.to_sql ~name table constraints in
+              let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
+              DB.exec req ()
+            | _ ->
+              (* if since is not present, or current version is
+                 greater than or equal to since, then the table is
+                 already present *)
+              Lwt.return_ok ())
+          |> Lwt_seq.to_list
+          |> Lwt.map result_all_unit in
+        (* then, run global migrations *)
         let* () =
           Lwt_list.map_s (fun (_, migrations) ->
             Lwt_list.map_s (fun migration ->
@@ -229,17 +239,21 @@ module VersionedDatabase = struct
         let* () = 
           Hashtbl.to_seq_values t.tables
           |> Lwt_seq.of_seq
-          |> Lwt_seq.map_s (fun (MkTable (_, _, migrations, _, _)) ->
-            (* find all migrations from the stored version to the applications version  *)
-            let migrations = find_migrations_to_run ~current_version migrations in
-            (* run them in order *)
-            Lwt_list.map_s (fun (_, migrations) ->
-              Lwt_list.map_s (fun migration ->
-                DB.exec migration ()
+          |> Lwt_seq.map_s (fun (MkTable (_, _, since, migrations, _, _)) ->
+            match since with
+            | Some since when compare_version current_version since < 0 ->
+              Lwt.return_ok ()
+            | _ ->
+              (* find all migrations from the stored version to the applications version  *)
+              let migrations = find_migrations_to_run ~current_version migrations in
+              (* run them in order *)
+              Lwt_list.map_s (fun (_, migrations) ->
+                Lwt_list.map_s (fun migration ->
+                  DB.exec migration ()
+                ) migrations
+                |> Lwt.map result_all_unit
               ) migrations
-              |> Lwt.map result_all_unit
-            ) migrations
-            |> Lwt.map result_all_unit)
+              |> Lwt.map result_all_unit)
           |> Lwt_seq.to_list
           |> Lwt.map result_all_unit in
         let* () = set_version t t.version conn in

@@ -3,6 +3,8 @@ let () = Printexc.register_printer (function (Failure msg) -> Some msg | _ -> No
 let run expr =
   match Lwt_main.run expr with
   | Ok _ -> ()
+  | Error (`Newer_version_than_supported _) ->
+    failwith ("Attempted to use a newer database than supported")
   | Error (#Caqti_error.t as err) -> failwith ((Caqti_error.show err))
   | Error (`Msg m) -> failwith m
 
