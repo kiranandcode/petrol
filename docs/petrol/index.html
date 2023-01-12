@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"><head><title>index (petrol.index)</title><link rel="stylesheet" href="../odoc.css"/><meta charset="utf-8"/><meta name="generator" content="odoc 2.2.0"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><script src="../highlight.pack.js"></script><script>hljs.initHighlightingOnLoad();</script></head><body class="odoc"><nav class="odoc-nav"><a href="../index.html">Up</a> – petrol</nav><header class="odoc-preamble"><h1 id="top"><a href="#top" class="anchor"></a>Petrol</h1><p>Petrol is a Free software library that provides a high-level OCaml API for interacting with SQL databases. The aim of this interface is to provide a type-safe API to allow developers to define their SQL tables and queries directly in OCaml, thereby avoiding the impedence mismatch and fragility that comes with having to directly write SQL code, as is typical in a normal Caqti-based project.</p><pre class="language-ocaml"><code>open Petrol
+
+(* define a new schema *)
+let schema = StaticSchema.init ()
+
+(* declare a table *)
+let example_table, Expr.[name; age] =
+    StaticSchema.declare_table schema ~name:&quot;example&quot;
+    Schema.[
+        field &quot;name&quot; ~ty:Type.text;
+        field &quot;age&quot; ~ty:Type.int
+    ]</code></pre><p>Petrol's DSL allows you to express complex SQL queries as simple OCaml function compositions:</p><pre class="language-ocaml"><code>(* create a query *)
+let insert_person ~name:n ~age:a db =
+    Query.insert ~table:example_table
+        ~values:Expr.[
+            name := s n;
+            age := i a
+         ]
+    |&gt; Request.make_zero
+    |&gt; Petrol.exec db</code></pre><p>The rest of this page will provide a simple quick-start guide to using <a href="#top">Petrol</a>. Advanced users may instead want to check out the <a href="Petrol/index.html">API documentation</a>.</p></header><nav class="odoc-toc"><ul><li><a href="#guide">A 3 step guide to Petrol</a><ul><li><a href="#defining">1. Declare schema and tables</a></li><li><a href="#expressing">2. Define your queries</a></li><li><a href="#initialisation">3. Initialise the schema at startup</a></li></ul></li><li><a href="#versioning">Versioned vs Static Schemas</a></li></ul></nav><div class="odoc-content"><h3 id="guide"><a href="#guide" class="anchor"></a>A 3 step guide to Petrol</h3><p>Petrol aims to make the process of writing SQL in OCaml as <i>simple</i> as possible. To this end, you can include in your project, with just 3 steps:</p><ol><li><a href="#defining">Declaring a schema and its tables</a></li><li><a href="#expressing">Defining queries over the tables</a></li><li><a href="#initialisation">Initialising the schema at startup</a></li></ol><h4 id="defining"><a href="#defining" class="anchor"></a>1. Declare schema and tables</h4><p>The first step to using Petrol is to declare a <code>Schema</code> (either <a href="Petrol/VersionedSchema/index.html#type-t">versioned</a> or <a href="Petrol/StaticSchema/index.html#type-t">static</a>);</p><pre class="language-ocaml"><code>open Petrol
+
+(* schema version 1.0.0 *)
+let version = VersionedSchema.version [1;0;0]
+
+(* define a schema *)
+let schema = VersionedSchema.init version ~name:&quot;my_application&quot;</code></pre><p>Once you have a schema defined, you can add tables using the <a href="Petrol/VersionedSchema/index.html#val-declare_table"><code>VersionedSchema.declare_table</code></a> function:</p><pre class="language-ocaml"><code>open Petrol
+
+(* declare a table, returning the table name and fields *)
+let my_table, Expr.[id_field; text_field] =
+  VersionedSchema.declare_table schema ~name:&quot;my_table&quot;
+     Schema.[
+        field ~constraints:[primary_key ~auto_increment:true ()] &quot;id&quot; ~ty:Type.int;
+        field &quot;name&quot; ~ty:Type.text;
+     ]</code></pre><h4 id="expressing"><a href="#expressing" class="anchor"></a>2. Define your queries</h4><p>Having declared a table, you can now define your SQL queries using Petrol's <a href="Petrol/Query/index.html"><code>Query</code></a> and <a href="Petrol/Expr/index.html"><code>Expr</code></a> combinators:</p><pre class="language-ocaml"><code>open Petrol
+
+(* define an query to insert new rows *)
+let insert_text ~text:txt db =
+    Query.insert ~table:example_table
+        ~values:Expr.[
+            text_field := s txt;
+         ]
+    |&gt; Request.make_zero
+    |&gt; Petrol.exec db
+
+(* define an query to collect all rows *)
+let collect_all db =
+    Query.select Expr.[id_field; text_field] ~from:example_table
+    |&gt; Request.make_many
+    |&gt; Petrol.collect_list db
+    |&gt; Lwt_result.map (List.map (fun (id, (text, ())) -&gt;
+        (id,text)
+    ))</code></pre><p>Note that the <a href="Petrol/Request/index.html"><code>Request.make_*</code></a> functions cache their results, so it's safe and efficient to call them directly.</p><h4 id="initialisation"><a href="#initialisation" class="anchor"></a>3. Initialise the schema at startup</h4><p>Finally, just make sure to initialise the table during startup when you establish a connection to the SQL server:</p><pre class="language-ocaml"><code>(* ... somewhere at the entry point *)
+let () =
+   let open Lwt_result.Syntax in
+   (* ... *)
+   let* conn = Caqti_lwt.connect url in
+   let* () =
+      Petrol.VersionedSchema.initialise
+        DB.db conn in
+   (* ... *)</code></pre><h3 id="versioning"><a href="#versioning" class="anchor"></a>Versioned vs Static Schemas</h3><p>Another key selling point of Petrol is that it comes out of the box with a nifty versioning system to gracefully allow changing the schemas in your application over time.</p><p>When initialising the <a href="Petrol/VersionedSchema/index.html"><code>Petrol.VersionedSchema</code></a> type, you must provide a version number that represents the current version of your application:</p><pre class="language-ocaml"><code>open Petrol
+
+(* schema version 1.0.0 *)
+let version = VersionedSchema.version [1;0;0]
+
+(* define a schema *)
+let schema = VersionedSchema.init version ~name:&quot;my_application&quot;</code></pre><p>Version numbers are ordered lexiographically (i.e <code>version [2] &gt; version [1;0;0]</code>).</p><p>Then, if you use the <a href="Petrol/VersionedSchema/index.html"><code>Petrol.VersionedSchema</code></a> schema, then you will notice that both the <a href="Petrol/VersionedSchema/index.html#val-init">init</a> and <a href="Petrol/VersionedSchema/index.html#val-declare_table">declare_table</a> functions allow you to also pass in an optional <code>~migrations</code> argument.</p><pre class="language-ocaml"><code>open Petrol
+
+(* declare a table with a migration for a new [age] column in version 1.2.0 *)
+let t, Expr.[id;age;url] =
+   VersionedSchema.declare_table db ~name:&quot;person&quot;
+     Schema.[
+       field ~constraints:[primary_key ~name:&quot;bookmark_id&quot; ()] &quot;id&quot; ~ty:Type.int;
+       field &quot;age&quot; ~ty:Type.int;
+       field &quot;url&quot; ~ty:Type.text;
+     ]
+     ~migrations:[v_1_2_0, [
+       Caqti_request.Infix.(Caqti_type.unit -&gt;. Caqti_type.unit)
+         {sql|ALTER TABLE person ADD COLUMN age INTEGER DEFAULT 1000|sql}
+     ]]</code></pre><p>If a table only becomes available <i>after</i> a particular version, then <a href="Petrol/VersionedSchema/index.html#val-declare_table">declare_table</a> also has a <code>~since:version</code> argument that allows you to inform the migration engine to create the table during migrations.</p><p>The appropriate migrations to run are automatically determined and run during initialisation when you call <a href="Petrol/VersionedSchema/index.html#val-initialise"><code>initialise</code></a>.</p><p>As migrations may be destructive, Petrol also provides a <a href="Petrol/VersionedSchema/index.html#val-migrations_needed">migrations_needed</a> function that can be called before <a href="Petrol/VersionedSchema/index.html#val-initialise"><code>initialise</code></a> to test whether the current database requires migrations or not -- i.e so that you can ask the user to confirm whether to perform the operation.</p></div></body></html>
