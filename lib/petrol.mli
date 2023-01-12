@@ -48,6 +48,10 @@ module Expr : sig
       ]}
   *)
 
+  type wrapped_assign
+  (** An opaque wrapper that represents an assignment of a value to a
+      particular field in a table.  *)
+
   val pp: Format.formatter -> 'a t -> unit
   (** [pp fmt expr] pretty prints an SQL expression as a string that
       can be parsed by an SQL engine.  *)
@@ -132,6 +136,10 @@ module Expr : sig
   (** [coerce expr ty] coerces expression [expr] to the type
       [ty]. This coercion is not checked, so make sure you know what
       you're doing or it could fail at runtime.  *)
+
+  val (:=) : 'a Expr.t -> 'a Expr.t -> wrapped_assign
+  (** [v := expr] returns an SQL expression that can be used with an
+      update or insert clause to change the values in the database. *)
 
   (** {1 Operators} *)
 
@@ -313,16 +321,16 @@ module Schema : sig
     ?on_delete:foreign_conflict_clause ->
     table:table_name ->
     columns:'a Expr.expr_list -> string list -> [ `Table ] constraint_
-  (** [table_foreign_key ?name ?on_update ?on_delete ~table ~columns
-      cols] returns a new SQL table constraint that specifies that the
-      table it is attached to's values for the columns [cols] must be
-      a foreign key into the table [table] with columns [columns].
+    (** [table_foreign_key ?name ?on_update ?on_delete ~table ~columns
+        cols] returns a new SQL table constraint that specifies that the
+        table it is attached to's values for the columns [cols] must be
+        a foreign key into the table [table] with columns [columns].
 
-      [name] is an optional name for the constraint for debugging
-      purposes.
+        [name] is an optional name for the constraint for debugging
+        purposes.
 
-      [on_update] and [on_delete] specifies how to handle conflicts
-      for updates and deletes respectively..  *)
+        [on_update] and [on_delete] specifies how to handle conflicts
+        for updates and deletes respectively..  *)
 
 end
 
@@ -340,10 +348,6 @@ module Query : sig
     | RIGHT                     (** RIGHT join -- keep rows from the right table where the right column is NULL  *)
     | INNER                     (** INNER -- only keep rows for which both the left and right of the join are present. *)
   (** Defines the type of join to be used to combine two tables  *)
-
-  type wrapped_assign
-  (** An opaque wrapper that represents an assignment of a value to a
-      particular field in a table.  *)
 
   type ('a, 'c) filter_fun = bool Expr.t -> ('c, 'a) t -> ('c, 'a) t
     constraint 'a = [< `DELETE | `SELECT | `SELECT_CORE | `UPDATE ]
@@ -368,27 +372,23 @@ module Query : sig
   (** [('a,'b,'c,'d) join_fun] defines the type of an SQL function
       that corresponds to SQL's JOIN clause.  *)
 
-    type ('a, 'b, 'c) on_err_fun = 'b -> ('c, 'a) t -> ('c, 'a) t
+  type ('a, 'b, 'c) on_err_fun = 'b -> ('c, 'a) t -> ('c, 'a) t
     constraint 'a = [> `INSERT | `UPDATE ]
     constraint 'b = [< `ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ]
   (** [('a,'b,'c) having_fun] defines the type of an SQL function
       that corresponds to SQL's HAVING clause ON ERR.  *)
-
-  val (:=) : 'a Expr.t -> 'a Expr.t -> wrapped_assign
-  (** [v := expr] returns an SQL expression that can be used with an
-      update or insert clause to change the values in the database. *)
 
   val select :
     'a Expr.expr_list -> from:table_name -> ('a, [> `SELECT_CORE ]) t
   (** [select fields ~from] corresponds to the SQL [SELECT {fields} FROM {from}]. *)
 
   val update :
-    table:table_name -> set:wrapped_assign list -> (unit, [> `UPDATE ]) t
+    table:table_name -> set:Expr.wrapped_assign list -> (unit, [> `UPDATE ]) t
   (** [update ~table ~set] corresponds to the SQL [UPDATE {set} FROM {table}]. *)
 
   val insert :
     table:table_name ->
-    values:wrapped_assign list -> (unit, [> `INSERT ]) t
+    values:Expr.wrapped_assign list -> (unit, [> `INSERT ]) t
   (** [insert ~table ~values] corresponds to the SQL [INSERT {values} INTO {table}]. *)
 
   val delete : from:table_name -> (unit, [> `DELETE ]) t
@@ -407,8 +407,8 @@ module Query : sig
   val join : ([ `SELECT_CORE ], 'b, [< `SELECT_CORE | `SELECT ], 'c) join_fun
   (** [join ?op ~on oexpr expr] corresponds to the SQL [{expr} {op} JOIN {oexpr} ON {expr}].
 
-  The ordering of the last two arguments has been chosen to allow
-  easily piping this with another SQL query. *)
+      The ordering of the last two arguments has been chosen to allow
+      easily piping this with another SQL query. *)
 
   val on_err : [ `ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] ->
     (unit, 'a) t -> (unit, 'a) t
@@ -424,8 +424,8 @@ module Query : sig
 
   val order_by
     : ?direction:[ `ASC | `DESC ] -> 'a Expr.t -> ('b, [ `SELECT | `SELECT_CORE ]) t -> ('b, [> `SELECT ]) t
-  (** [order_by ?direction fields expr] corresponds to the SQL [{expr}
-      ORDER BY {direction} {fields}].  *)
+    (** [order_by ?direction fields expr] corresponds to the SQL [{expr}
+        ORDER BY {direction} {fields}].  *)
 
 end
 
@@ -464,34 +464,11 @@ module Request : sig
 
 end
 
-val exec : (module Caqti_lwt.CONNECTION) -> (unit, [< `Zero ]) Request.t ->
-  (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
-(** [exec db req] executes a unit SQL request [req] on the SQL
-    database [db].  *)
-
-val find : (module Caqti_lwt.CONNECTION) -> ('a, [< `One ]) Request.t ->
-  ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
-(** [find db req] executes a singleton SQL request [req] on the SQL
-    database [db] returning the result.  *)
-
-val find_opt : (module Caqti_lwt.CONNECTION) ->
-  ('a, [< `One | `Zero ]) Request.t ->
-  ('a option, [> Caqti_error.call_or_retrieve ]) result Lwt.t
-(** [find_opt db req] executes a zero-or-one SQL request [req] on the SQL
-    database [db] returning the result if it exists.  *)
-
-val collect_list :
-  (module Caqti_lwt.CONNECTION) ->
-  ('a, [< `Many | `One | `Zero ]) Request.t ->
-  ('a list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
-(** [collect_list db req] executes a SQL request [req] on the SQL
-    database [db] and collects the results into a list.  *)
-
-module GlobalDatabase : sig
+module StaticDatabase : sig
 
   (** Provides a helper interface, primarily for
-      prototyping/debugging, that declares a single global table
-      without any versioning.  *)
+      prototyping/debugging, that declares a static table without any
+      versioning.  *)
 
   type t
   (** A global database, primarily intended for testing.
@@ -500,10 +477,10 @@ module GlobalDatabase : sig
       alternative, especially if you expect the schema to change in
       the future.
 
-  {b Note} A database [t] here represents a collection of table
-  schemas but doesn't have to be an exhaustive enumeration - i.e it is
-  possible to have multiple [t] valid for a given SQL database
-  provided they refer to disjoint collections of tables. *)
+      {b Note} A database [t] here represents a collection of table
+      schemas but doesn't have to be an exhaustive enumeration - i.e it is
+      possible to have multiple [t] valid for a given SQL database
+      provided they refer to disjoint collections of tables. *)
 
   val init: unit -> t
   (** [init version ~name] constructs a new database. *)
@@ -520,8 +497,8 @@ module GlobalDatabase : sig
 
 
   val initialise : t -> (module Caqti_lwt.CONNECTION) ->
-    (unit, [> `Msg of string ]) Lwt_result.t
-  (** [initialise t conn] initialises the SQL database on [conn]. *)
+    (unit, [> Caqti_error.t ]) Lwt_result.t
+    (** [initialise t conn] initialises the SQL database on [conn]. *)
 
 end
 
@@ -533,10 +510,10 @@ module VersionedDatabase : sig
   type t
   (** A versioned database.
 
-  {b Note} A database [t] here represents a collection of table
-  schemas but doesn't have to be an exhaustive enumeration - i.e it is
-  possible to have multiple [t] valid for a given SQL database
-  provided they refer to disjoint collections of tables. *)
+      {b Note} A database [t] here represents a collection of table
+      schemas but doesn't have to be an exhaustive enumeration - i.e it is
+      possible to have multiple [t] valid for a given SQL database
+      provided they refer to disjoint collections of tables. *)
 
   type version = private int list
   (** Lexiographically ordered database version numbers  *)
@@ -584,7 +561,7 @@ module VersionedDatabase : sig
       is irrelevant.  *)
 
   val migrations_needed : t -> (module Caqti_lwt.CONNECTION) ->
-    (bool, [> `Msg of string ]) Lwt_result.t
+    (bool, [> Caqti_error.t  | `Newer_version_than_supported of version ]) Lwt_result.t
   (** [migrations_needed t conn] returns a boolean indicating whether
       the current version on the SQL database will require migrations
       -- i.e whether running {!initialise} will run migrations.
@@ -593,11 +570,34 @@ module VersionedDatabase : sig
       database has a newer version than the version declared here.  *)
 
   val initialise : t -> (module Caqti_lwt.CONNECTION) ->
-    (unit, [> `Msg of string ]) Lwt_result.t
-  (** [initialise t conn] initialises the SQL database on [conn],
-      performing any necessary migrations if needed.
+    (unit, [> Caqti_error.t | `Newer_version_than_supported of version ]) Lwt_result.t
+    (** [initialise t conn] initialises the SQL database on [conn],
+        performing any necessary migrations if needed.
 
-      [initialise] will fail if it is run using an SQL database has a
-      newer version than the version declared here.  *)
+        [initialise] will fail if it is run using an SQL database has a
+        newer version than the version declared here.  *)
 
 end
+
+val exec : (module Caqti_lwt.CONNECTION) -> (unit, [< `Zero ]) Request.t ->
+  (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+(** [exec db req] executes a unit SQL request [req] on the SQL
+    database [db].  *)
+
+val find : (module Caqti_lwt.CONNECTION) -> ('a, [< `One ]) Request.t ->
+  ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+(** [find db req] executes a singleton SQL request [req] on the SQL
+    database [db] returning the result.  *)
+
+val find_opt : (module Caqti_lwt.CONNECTION) ->
+  ('a, [< `One | `Zero ]) Request.t ->
+  ('a option, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+(** [find_opt db req] executes a zero-or-one SQL request [req] on the SQL
+    database [db] returning the result if it exists.  *)
+
+val collect_list :
+  (module Caqti_lwt.CONNECTION) ->
+  ('a, [< `Many | `One | `Zero ]) Request.t ->
+  ('a list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+(** [collect_list db req] executes a SQL request [req] on the SQL
+    database [db] and collects the results into a list.  *)

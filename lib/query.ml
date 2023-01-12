@@ -2,10 +2,6 @@ type ('y, 'ty) t = ('y, 'ty) Types.query
 
 type join_op = Types.join_op = LEFT | RIGHT | INNER
 
-type wrapped_assign = Types.wrapped_assign
-let (:=) l r = Types.ASSIGN (l,r)
-
-
 type ('a,'c) filter_fun =
   bool Expr.t -> ('c, 'a) t
   -> ('c, 'a) t

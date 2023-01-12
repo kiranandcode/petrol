@@ -4,6 +4,8 @@ type 'a expr_list = 'a Types.expr_list =
   | [] : unit expr_list
   | (::) : ('a t * 'b expr_list) -> ('a * 'b) expr_list
 
+type wrapped_assign = Types.wrapped_assign
+
 type wrapped_value = MkWrapped: 'a Type.t * 'a -> wrapped_value
 
 let pp_wrapped_value fmt = function
@@ -260,6 +262,8 @@ let nullable v = Types.NULLABLE v
 
 let true_ = Types.CONST_STATIC (true,BOOL)
 let false_ = Types.CONST_STATIC (false,BOOL)
+
+let (:=) l r = Types.ASSIGN (l,r)
 
 let (+) l r = Types.ADD (l, r)
 let (-) l r = Types.SUB (l, r)
