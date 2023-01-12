@@ -38,4 +38,4 @@ let insert_person ~name:n ~age:a db =
 ```
 
 
-See the rest of the documentation at [](link here)
+See the rest of the documentation at [here](https://gopiandcode.github.io/petrol/petrol/index.html).
