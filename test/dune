@@ -1,0 +1,8 @@
+(executables (names test_static_person)
+  (modules (:standard \ "test_utils"))
+ (libraries test_utils petrol caqti caqti-lwt caqti-driver-sqlite3))
+
+(library (name test_utils)
+ (modules "test_utils")
+ (libraries petrol caqti caqti-lwt caqti-driver-sqlite3))
+

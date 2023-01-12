@@ -1,0 +1,1 @@
+(cram (deps ../test_static_person.exe))
