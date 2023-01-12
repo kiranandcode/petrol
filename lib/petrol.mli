@@ -74,7 +74,7 @@ module Expr : sig
       form if you expect the constant value to change frequently - for
       example, if it is a constant value that you are receiving from
       elsewhere. Use the static form if you know that the value
-      doesn't change and will always be the same value.  *)
+      doesn't change and will always be the same.  *)
 
   val i : int -> int t
   (** [i v] returns an expression that evaluates to the integer value
@@ -464,32 +464,32 @@ module Request : sig
 
 end
 
-module StaticDatabase : sig
+module StaticSchema : sig
 
   (** Provides a helper interface, primarily for
       prototyping/debugging, that declares a static table without any
       versioning.  *)
 
   type t
-  (** A global database, primarily intended for testing.
+  (** A global schema, primarily intended for testing.
 
-      See also {!VersionedDatabase.t}, which is the recommended
+      See also {!VersionedSchema.t}, which is the recommended
       alternative, especially if you expect the schema to change in
       the future.
 
-      {b Note} A database [t] here represents a collection of table
+      {b Note} A schema [t] here represents a collection of table
       schemas but doesn't have to be an exhaustive enumeration - i.e it is
       possible to have multiple [t] valid for a given SQL database
       provided they refer to disjoint collections of tables. *)
 
   val init: unit -> t
-  (** [init version ~name] constructs a new database. *)
+  (** [init version ~name] constructs a new schema. *)
 
   val declare_table : t ->
     ?constraints:[`Table] Schema.constraint_ list ->
     name:string -> 'a Schema.table -> table_name * 'a Expr.expr_list
   (** [declare_table t ?constraints ~name table_spec]
-      declares a new table on the database [t] with the name
+      declares a new table on the schema [t] with the name
       [name].
 
       [constraints] are a list of SQL constraints on the columns of
@@ -498,29 +498,28 @@ module StaticDatabase : sig
 
   val initialise : t -> (module Caqti_lwt.CONNECTION) ->
     (unit, [> Caqti_error.t ]) Lwt_result.t
-    (** [initialise t conn] initialises the SQL database on [conn]. *)
+    (** [initialise t conn] initialises the SQL schema on [conn]. *)
 
 end
 
-module VersionedDatabase : sig
+module VersionedSchema : sig
 
-  (** Provides an interface that declares a versioned database
-      schema. *)
+  (** Provides an interface that declares a versioned schema. *)
 
   type t
-  (** A versioned database.
+  (** A versioned schema.
 
-      {b Note} A database [t] here represents a collection of table
+      {b Note} A schema [t] here represents a collection of table
       schemas but doesn't have to be an exhaustive enumeration - i.e it is
       possible to have multiple [t] valid for a given SQL database
       provided they refer to disjoint collections of tables. *)
 
   type version = private int list
-  (** Lexiographically ordered database version numbers  *)
+  (** Lexiographically ordered schema version numbers  *)
 
   type migration = (unit, unit, [`Zero]) Caqti_request.t
-  (** Represents SQL statements required to update the database schema
-      over versions. *)
+  (** Represents SQL statements required to update the schema over
+      versions. *)
 
   val version: int list -> version
   (** [version ls] constructs a new version number from [ls]. *)
@@ -528,19 +527,19 @@ module VersionedDatabase : sig
   val init:
     ?migrations:(version * migration list) list -> version -> name:string -> t
   (** [init ?migrations version ~name] constructs a new versioned
-      database declaring it to have the name [name] and version
+      schema declaring it to have the name [name] and version
       [version].
 
-      [name] is the name of the database -- used to initially
+      [name] is the name of the schema -- used to initially
       determine the stored version number, and is required to stay
-      constant over the lifetime of the project.
+      constant over the lifetime of the project. 
 
-      [version] is the current version of the database -- note that
+      [version] is the current version of the schema -- note that
       {!initialise} will fail if it is run using an SQL database has a
       newer version than the version declared here.
 
       [migrations] is an association list, mapping versions to the SQL
-      statements required to migrate the database to the new format
+      statements required to migrate the schema to the new format
       from its previous version. The order of elements in [migrations]
       is irrelevant. *)
 
@@ -550,7 +549,7 @@ module VersionedDatabase : sig
     ?migrations:(version * migration list) list ->
     name:string -> 'a Schema.table -> table_name * 'a Expr.expr_list
   (** [declare_table t ?since ?constraints ?migrations ~name table_spec]
-      declares a new table on the database [t] with the name
+      declares a new table on the schema [t] with the name
       [name].
 
       [since] declares the first version in which this table was
@@ -572,7 +571,10 @@ module VersionedDatabase : sig
       -- i.e whether running {!initialise} will run migrations.
 
       [migrations_needed] will also fail if it is run using an SQL
-      database has a newer version than the version declared here.  *)
+      database has a newer version than the version declared here.
+
+      {b Note} [migrations_needed] reserves the table name
+      [petrol_<schema_name>_version_db] in the database. *)
 
   val initialise : t -> (module Caqti_lwt.CONNECTION) ->
     (unit, [> Caqti_error.t | `Newer_version_than_supported of version ]) Lwt_result.t
@@ -580,7 +582,10 @@ module VersionedDatabase : sig
         performing any necessary migrations if needed.
 
         [initialise] will fail if it is run using an SQL database has a
-        newer version than the version declared here.  *)
+        newer version than the version declared here.
+
+        {b Note} [initialise] reserves the table name
+        [petrol_<schema_name>_version_db] in the database.  *)
 
 end
 

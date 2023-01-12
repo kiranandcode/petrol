@@ -1,9 +1,9 @@
 [@@@warning "-27-26"]
 open Lwt_result.Syntax
 
-let v_1_0_0 = Petrol.VersionedDatabase.version [1;0;0]
-let v_1_2_0 = Petrol.VersionedDatabase.version [1;2;0]
-let v_2 = Petrol.VersionedDatabase.version [2]
+let v_1_0_0 = Petrol.VersionedSchema.version [1;0;0]
+let v_1_2_0 = Petrol.VersionedSchema.version [1;2;0]
+let v_2 = Petrol.VersionedSchema.version [2]
 
 let result_all_unit : (unit, 'e) result list -> (unit, 'e) result =
   fun ls ->
@@ -31,7 +31,7 @@ module Bookmark = struct
       (String.concat "," tags)
 
   module type BOOKMARKS = sig
-    val db : Petrol.VersionedDatabase.t
+    val db : Petrol.VersionedSchema.t
 
     val insert :
       t -> (module Caqti_lwt.CONNECTION) ->
@@ -71,11 +71,11 @@ module Bookmark = struct
   end
 
   module V1 = struct
-    let db = Petrol.VersionedDatabase.init v_1_0_0 ~name:"bookmark" 
+    let db = Petrol.VersionedSchema.init v_1_0_0 ~name:"bookmark" 
 
     open Petrol
     let t, Expr.[id;url] =
-      VersionedDatabase.declare_table db ~name:"person"
+      VersionedSchema.declare_table db ~name:"person"
         Schema.[
           field ~constraints:[primary_key ~name:"bookmark_id" ()] "id" ~ty:Type.int;
           field "url" ~ty:Type.text;
@@ -109,13 +109,13 @@ module Bookmark = struct
   end
 
   module V1_2  = struct
-    let db = Petrol.VersionedDatabase.init v_1_2_0 ~name:"bookmark" 
+    let db = Petrol.VersionedSchema.init v_1_2_0 ~name:"bookmark" 
 
 
     open Petrol
 
     let t, Expr.[id;age;url] =
-      VersionedDatabase.declare_table db ~name:"person"
+      VersionedSchema.declare_table db ~name:"person"
         Schema.[
           field ~constraints:[primary_key ~name:"bookmark_id" ()] "id" ~ty:Type.int;
           field "age" ~ty:Type.int;
@@ -163,12 +163,12 @@ module Bookmark = struct
   end
 
   module V2 = struct
-    let db = Petrol.VersionedDatabase.init v_2 ~name:"bookmark" 
+    let db = Petrol.VersionedSchema.init v_2 ~name:"bookmark" 
 
     open Petrol
 
     let t, Expr.[id;age;name;url] =
-      VersionedDatabase.declare_table db ~name:"person"
+      VersionedSchema.declare_table db ~name:"person"
         Schema.[
           field ~constraints:[primary_key ~name:"bookmark_id" ()] "id" ~ty:Type.int;
           field "age" ~ty:Type.int;
@@ -189,7 +189,7 @@ module Bookmark = struct
     module Tags = struct
 
       let t, Expr.[_tag_id;bookmark_id; tag_text] =
-        VersionedDatabase.declare_table db ~name:"tag" ~since:v_2
+        VersionedSchema.declare_table db ~name:"tag" ~since:v_2
           Schema.[
             field ~constraints:[primary_key ~auto_increment:true ()] "tag_id" ~ty:Type.int;
             field "bookmark_id" ~ty:Type.int ~constraints:[
@@ -281,7 +281,7 @@ let () =
 
     match[@warning "-8"] List.hd args, List.tl args with
     | "init", _ ->
-      let* _ = Petrol.VersionedDatabase.initialise DB.db conn in
+      let* _ = Petrol.VersionedSchema.initialise DB.db conn in
       Lwt.return_ok ()
     | "add", (id :: url :: rest) ->
       let id = int_of_string id in
@@ -294,17 +294,17 @@ let () =
         |> Option.value ~default:"" in
       let tags = match rest with (_ :: _ :: rest) -> rest | _ -> [] in
       let b = Bookmark.{id;name;url;age;tags} in
-      let* _ = Petrol.VersionedDatabase.initialise DB.db conn in
+      let* _ = Petrol.VersionedSchema.initialise DB.db conn in
       let* _ = DB.insert b conn in
       Lwt.return_ok ()
     |  "update-age", [id;age] ->
       let id = int_of_string id in
       let age = int_of_string age in
-      let* _ = Petrol.VersionedDatabase.initialise DB.db conn in
+      let* _ = Petrol.VersionedSchema.initialise DB.db conn in
       let* _ = DB.update_age ~id ~age conn in
       Lwt.return_ok ()
     |  "list", _ ->
-      let* _ = Petrol.VersionedDatabase.initialise DB.db conn in
+      let* _ = Petrol.VersionedSchema.initialise DB.db conn in
       let* result = DB.collect_all conn in
       List.iteri (fun ind b ->
         print_endline ("[" ^ string_of_int ind ^ "] - " ^ Bookmark.show b)
@@ -312,7 +312,7 @@ let () =
       Lwt.return_ok ()
     |  "since", [age] ->
       let age = int_of_string age in
-      let* _ = Petrol.VersionedDatabase.initialise DB.db conn in
+      let* _ = Petrol.VersionedSchema.initialise DB.db conn in
       let* result = DB.collect_since ~age conn in
       List.iteri (fun ind b ->
         print_endline ("[" ^ string_of_int ind ^ "] - " ^ Bookmark.show b)
@@ -320,17 +320,17 @@ let () =
       Lwt.return_ok ()
     |  "add-tag", [id;tag] ->
       let id = int_of_string id in
-      let* _ = Petrol.VersionedDatabase.initialise DB.db conn in
+      let* _ = Petrol.VersionedSchema.initialise DB.db conn in
       let* () = DB.add_tag ~id ~tag conn in
       Lwt.return_ok ()
     |  "delete", [id] ->
       let id = int_of_string id in
-      let* _ = Petrol.VersionedDatabase.initialise DB.db conn in
+      let* _ = Petrol.VersionedSchema.initialise DB.db conn in
       let* () = DB.delete ~id conn in
       Lwt.return_ok ()
     |  "clear-tags", [id] ->
       let id = int_of_string id in
-      let* _ = Petrol.VersionedDatabase.initialise DB.db conn in
+      let* _ = Petrol.VersionedSchema.initialise DB.db conn in
       let* () = DB.clear_tags ~id conn in
       Lwt.return_ok ()
   end

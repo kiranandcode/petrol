@@ -1,7 +1,7 @@
 [@@@warning "-27-26"]
 open Lwt_result.Syntax
 
-let db = Petrol.StaticDatabase.init ()
+let db = Petrol.StaticSchema.init ()
 
 module Person = struct
 
@@ -10,7 +10,7 @@ module Person = struct
   module Sql = struct
     open Petrol
     let t, Expr.[name;age] =
-      StaticDatabase.declare_table db ~name:"person"
+      StaticSchema.declare_table db ~name:"person"
         Schema.[
           field ~constraints:[primary_key ~name:"unique_names" ()] "name" ~ty:Type.text;
           field "age" ~ty:Type.int;
@@ -72,15 +72,15 @@ end
 let () =
   Test_utils.main begin fun conn -> function[@warning "-8"]
     | "init", _ ->
-      let* _ = Petrol.StaticDatabase.initialise db conn in
+      let* _ = Petrol.StaticSchema.initialise db conn in
       Lwt.return_ok ()
     | "add", [name;age] ->
       let age = int_of_string age in
-      let* _ = Petrol.StaticDatabase.initialise db conn in
+      let* _ = Petrol.StaticSchema.initialise db conn in
       let* _ = Person.Sql.insert Person.{name;age} conn in
       Lwt.return_ok ()
     |  "find-by", [name] ->
-      let* _ = Petrol.StaticDatabase.initialise db conn in
+      let* _ = Petrol.StaticSchema.initialise db conn in
       let* result = Person.Sql.find_by ~name:name conn in
       begin match result with
       | None -> print_endline "not found"
@@ -89,14 +89,14 @@ let () =
       Lwt.return_ok ()
     |  "find-older-than", [age] ->
       let age = int_of_string age in
-      let* _ = Petrol.StaticDatabase.initialise db conn in
+      let* _ = Petrol.StaticSchema.initialise db conn in
       let* result = Person.Sql.find_older ~than:age conn in
       List.iteri (fun ind Person.{name;age} ->
         print_endline ("[" ^ string_of_int ind ^ "] - name: " ^ name ^ "; age: " ^ string_of_int age)
       ) result;
       Lwt.return_ok ()
     |  "list", _ ->
-      let* _ = Petrol.StaticDatabase.initialise db conn in
+      let* _ = Petrol.StaticSchema.initialise db conn in
       let* result = Person.Sql.all conn in
       List.iteri (fun ind Person.{name;age} ->
         print_endline ("[" ^ string_of_int ind ^ "] - name: " ^ name ^ "; age: " ^ string_of_int age)
@@ -104,17 +104,17 @@ let () =
       Lwt.return_ok ()
     |  "update", [name; age] ->
       let age = int_of_string age in
-      let* _ = Petrol.StaticDatabase.initialise db conn in
+      let* _ = Petrol.StaticSchema.initialise db conn in
       let* () = Person.Sql.update_age ~name age conn in
       Lwt.return_ok ()
     |  "delete", [name] ->
-      let* _ = Petrol.StaticDatabase.initialise db conn in
+      let* _ = Petrol.StaticSchema.initialise db conn in
       let* () = Person.Sql.delete ~name conn in
       Lwt.return_ok ()
     |  "insert-random", _ ->
       let fname = Sys.argv.(2) in
       let* conn = Caqti_lwt.connect (Uri.of_string ("sqlite3://:" ^ fname)) in
-      let* _ = Petrol.StaticDatabase.initialise db conn in
+      let* _ = Petrol.StaticSchema.initialise db conn in
       let person = Person.random () in
       let* _ = Person.Sql.insert person conn in
       Lwt.return_ok ()

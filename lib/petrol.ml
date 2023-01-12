@@ -46,7 +46,7 @@ let collect_list : 'a . (module Caqti_lwt.CONNECTION) ->
   DB.collect_list req data
 
 
-module StaticDatabase = struct
+module StaticSchema = struct
 
   type wrapped_table =
       MkTable : int * string * 'a Schema.table * [ `Table ] Schema.constraint_ list -> wrapped_table
@@ -87,7 +87,7 @@ module StaticDatabase = struct
 end
 
 
-module VersionedDatabase = struct
+module VersionedSchema = struct
 
 
   type version = int list
@@ -101,7 +101,7 @@ module VersionedDatabase = struct
     version: version;
     tables: (int, wrapped_table) Hashtbl.t;
     migrations: (version * migration list) list;
-    version_db: StaticDatabase.t;
+    version_db: StaticSchema.t;
     version_table_name: table_name;
     version_table_field: string Expr.t;
   }
@@ -116,9 +116,9 @@ module VersionedDatabase = struct
 
   let init ?(migrations=[]) version ~name =
     let migrations = order_by_version migrations in
-    let version_db = StaticDatabase.init () in
+    let version_db = StaticSchema.init () in
     let version_table_name, Expr.[version_table_field] =
-      StaticDatabase.declare_table version_db ~name:("petrol_" ^ name ^ "_version_db") Schema.[
+      StaticSchema.declare_table version_db ~name:("petrol_" ^ name ^ "_version_db") Schema.[
         field ~constraints:[primary_key (); not_null ()] "version" ~ty:Type.TEXT
       ] in
     {
@@ -147,7 +147,7 @@ module VersionedDatabase = struct
 
   let set_version t version con =
     let open Lwt_result.Syntax in
-    let* () = StaticDatabase.initialise t.version_db con in
+    let* () = StaticSchema.initialise t.version_db con in
     let version_str = String.concat "." (List.map Int.to_string version) in
     let (module DB: Caqti_lwt.CONNECTION) = con in
     let* () =
@@ -163,7 +163,7 @@ module VersionedDatabase = struct
 
   let get_current_version t con =
     let open Lwt_result.Syntax in
-    let* () = StaticDatabase.initialise t.version_db con in
+    let* () = StaticSchema.initialise t.version_db con in
     let* res =
       Query.select Expr.[t.version_table_field] ~from:t.version_table_name
       |> Request.make_zero_or_one
