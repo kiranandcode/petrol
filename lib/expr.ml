@@ -263,7 +263,10 @@ let nullable v = Types.NULLABLE v
 let true_ = Types.CONST_STATIC (true,BOOL)
 let false_ = Types.CONST_STATIC (false,BOOL)
 
-let (:=) l r = Types.ASSIGN (l,r)
+let (:=) l r =
+  match l with
+  | Types.FIELD fld -> Types.ASSIGN (fld,r)
+  | _ -> invalid_arg "LHS of an assignment must be a field"
 
 let (+) l r = Types.ADD (l, r)
 let (-) l r = Types.SUB (l, r)

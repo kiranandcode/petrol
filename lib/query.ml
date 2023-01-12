@@ -2,7 +2,7 @@ type ('y, 'ty) t = ('y, 'ty) Types.query
 
 type join_op = Types.join_op = LEFT | RIGHT | INNER
 
-type ('a,'c) filter_fun =
+type ('a,'c) where_fun =
   bool Expr.t -> ('c, 'a) t
   -> ('c, 'a) t
   constraint 'a =
@@ -71,12 +71,12 @@ let rec query_values : 'a 'b. Expr.wrapped_value list -> ('a,'b) t -> Expr.wrapp
     acc
   | UPDATE { table=_; on_err=_; set; where } ->
     let acc = List.fold_left (fun acc (Types.ASSIGN (vl, expr)) ->
-      Expr.values (Expr.values acc vl) expr) acc set in
+      Expr.values (Expr.values acc Types.(FIELD vl)) expr) acc set in
     let acc = Option.map (Expr.values acc) where |> Option.value ~default:acc in
     acc
   | INSERT { table=_; on_err=_; set } ->
     let acc = List.fold_left (fun acc (Types.ASSIGN (vl, _)) ->
-      Expr.values acc vl) acc set in
+      Expr.values acc Types.(FIELD vl)) acc set in
     let acc = List.fold_left (fun acc (Types.ASSIGN (_, expr)) ->
       Expr.values acc expr) acc set in
     acc
@@ -143,7 +143,7 @@ let rec pp_query: 'a 'b. Format.formatter ->
        (pp_opt pp_on_err) on_err
        (snd table)
        (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
-          (fun fmt (Types.ASSIGN (fld, _)) -> Format.fprintf fmt "%a" pp_field fld))
+          (fun fmt (Types.ASSIGN (fld, _)) -> Format.fprintf fmt "%a" pp_field Types.(FIELD fld)))
        set
        (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
           (fun fmt (Types.ASSIGN (_, expr)) -> Format.fprintf fmt "%a" Expr.pp expr))
@@ -161,8 +161,8 @@ and pp_join_list : Format.formatter -> Types.join list -> unit =
   | h :: t ->
     Format.fprintf fmt " %a%a" pp_join h pp_join_list t
 and pp_wrapped_assign: Format.formatter -> Types.wrapped_assign -> unit =
-  fun fmt (ASSIGN (vl, expr)) ->
-  Format.fprintf fmt "%a = %a" Expr.pp vl Expr.pp expr
+  fun fmt (ASSIGN ((_, field_name, _), expr)) ->
+  Format.fprintf fmt "%s = %a" field_name Expr.pp expr
 
 let show_query q = Format.asprintf "%a" pp_query q
 
@@ -192,7 +192,7 @@ let insert ~table:table_name ~values:set =
 let delete ~from:table_name =
   Types.DELETE { table=table_name; where=None }
 
-let filter : ('a,'c) filter_fun
+let where : ('a,'c) where_fun
   = fun  by (type a b) (table : (b, a) t) : (b, a) t ->
     let update_where where by =
       match where with
@@ -211,7 +211,7 @@ let filter : ('a,'c) filter_fun
     | Types.UPDATE { table; on_err; set; where } ->
       let where = update_where where by in
       UPDATE { table; on_err; set; where } 
-    | Types.INSERT _ -> invalid_arg "filter on insert clause not supported"
+    | Types.INSERT _ -> invalid_arg "where on insert clause not supported"
 
 let group_by : ('a,'b,'c) group_by_fun =
   fun by (type a b) (table : (b, a) t) : (b, a) t ->

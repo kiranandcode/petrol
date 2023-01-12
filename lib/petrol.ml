@@ -103,7 +103,7 @@ module VersionedDatabase = struct
   type migration = (unit, unit, [`Zero]) Caqti_request.t
 
   type wrapped_table =
-      MkTable : int * string * (version * migration) list * 'a Schema.table * [ `Table ] Schema.constraint_ list -> wrapped_table
+      MkTable : int * string * (version * migration list) list * 'a Schema.table * [ `Table ] Schema.constraint_ list -> wrapped_table
 
   type t = {
     version: version;
@@ -233,8 +233,11 @@ module VersionedDatabase = struct
             (* find all migrations from the stored version to the applications version  *)
             let migrations = find_migrations_to_run ~current_version migrations in
             (* run them in order *)
-            Lwt_list.map_s (fun (_, migration) ->
-              DB.exec migration ()
+            Lwt_list.map_s (fun (_, migrations) ->
+              Lwt_list.map_s (fun migration ->
+                DB.exec migration ()
+              ) migrations
+              |> Lwt.map result_all_unit
             ) migrations
             |> Lwt.map result_all_unit)
           |> Lwt_seq.to_list

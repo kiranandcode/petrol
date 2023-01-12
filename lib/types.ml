@@ -50,7 +50,7 @@ and 'a expr =
   | RANDOM: int expr
   | LOWER: string expr -> string expr
   | UPPER: string expr -> string expr
-and wrapped_assign = ASSIGN : 'a expr * 'a expr -> wrapped_assign
+and wrapped_assign = ASSIGN : 'a field * 'a expr -> wrapped_assign
 and (_, !'res) query =
   | SELECT_CORE : {
     exprs: 'a expr_list;

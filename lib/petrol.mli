@@ -137,7 +137,7 @@ module Expr : sig
       [ty]. This coercion is not checked, so make sure you know what
       you're doing or it could fail at runtime.  *)
 
-  val (:=) : 'a Expr.t -> 'a Expr.t -> wrapped_assign
+  val (:=) : 'a t -> 'a t -> wrapped_assign
   (** [v := expr] returns an SQL expression that can be used with an
       update or insert clause to change the values in the database. *)
 
@@ -349,9 +349,9 @@ module Query : sig
     | INNER                     (** INNER -- only keep rows for which both the left and right of the join are present. *)
   (** Defines the type of join to be used to combine two tables  *)
 
-  type ('a, 'c) filter_fun = bool Expr.t -> ('c, 'a) t -> ('c, 'a) t
+  type ('a, 'c) where_fun = bool Expr.t -> ('c, 'a) t -> ('c, 'a) t
     constraint 'a = [< `DELETE | `SELECT | `SELECT_CORE | `UPDATE ]
-  (** [('a,'c) filter_fun] defines the type of an SQL function
+  (** [('a,'c) where_fun] defines the type of an SQL function
       that corresponds to SQL's WHERE clause.  *)
 
   type ('a, 'b, 'c) group_by_fun =
@@ -394,9 +394,9 @@ module Query : sig
   val delete : from:table_name -> (unit, [> `DELETE ]) t
   (** [delete ~from] corresponds to the SQL [DELETE FROM {from}].  *)
 
-  val filter :
-    ([< `DELETE | `SELECT | `SELECT_CORE | `UPDATE ], 'c) filter_fun
-  (** [filter by expr] corresponds to the SQL [{expr} WHERE {by}].  *)
+  val where :
+    ([< `DELETE | `SELECT | `SELECT_CORE | `UPDATE ], 'c) where_fun
+  (** [where by expr] corresponds to the SQL [{expr} WHERE {by}].  *)
 
   val group_by : ([< `SELECT | `SELECT_CORE ], 'b, 'c) group_by_fun
   (** [group_by fields expr] corresponds to the SQL [{expr} GROUP BY {fields}].  *)
@@ -487,7 +487,7 @@ module StaticDatabase : sig
 
   val declare_table : t ->
     ?constraints:[`Table] Schema.constraint_ list ->
-    name:string -> 'a Schema.table -> Types.table_name * 'a Expr.expr_list
+    name:string -> 'a Schema.table -> table_name * 'a Expr.expr_list
   (** [declare_table t ?constraints ~name table_spec]
       declares a new table on the database [t] with the name
       [name].
@@ -546,8 +546,8 @@ module VersionedDatabase : sig
 
   val declare_table : t ->
     ?constraints:[`Table] Schema.constraint_ list ->
-    ?migrations:(version * migration) list ->
-    name:string -> 'a Schema.table -> Types.table_name * 'a Expr.expr_list
+    ?migrations:(version * migration list) list ->
+    name:string -> 'a Schema.table -> table_name * 'a Expr.expr_list
   (** [declare_table t ?constraints ?migrations ~name table_spec]
       declares a new table on the database [t] with the name
       [name].
