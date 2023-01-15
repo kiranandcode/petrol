@@ -37,6 +37,7 @@ let values_expr_list = Types.values_expr_list
 
 let rec ty: 'a . 'a t -> 'a Type.t = fun (type a) (expr: a t) : a Type.t ->
   match expr with
+  | NULL ty -> ty
   | SUB (_, _) -> INTEGER
   | ADD (_, _) -> INTEGER
   | NOT _ -> BOOL
@@ -98,6 +99,27 @@ let (:=) l r =
   match l with
   | Types.FIELD fld -> Types.ASSIGN (fld,r)
   | _ -> invalid_arg "LHS of an assignment must be a field"
+
+let null : 'a. 'a Type.t -> 'a option Type.t =
+  fun (type a) (ty: a Type.t) : a option Type.t ->
+  match ty with
+  | Type.BOOL -> NULLABLE_BOOL
+  | Type.INTEGER -> NULLABLE_INTEGER
+  | Type.REAL -> NULLABLE_REAL
+  | Type.TEXT -> NULLABLE_TEXT
+  | Type.BLOB -> NULLABLE_BLOB
+  | Type.NULLABLE_BOOL
+  | Type.NULLABLE_INTEGER
+  | Type.NULLABLE_REAL
+  | Type.NULLABLE_TEXT
+  | Type.NULLABLE_BLOB ->
+    failwith "invalid assumptions"
+
+let unset l =
+  match l with
+  | Types.FIELD (tbl, fld, ty) ->
+    Types.ASSIGN ((tbl, fld, (null ty)), Types.NULL (null ty))
+  | _ -> invalid_arg "LHS of an unset must be a field"
 
 let (+) l r = Types.ADD (l, r)
 let (-) l r = Types.SUB (l, r)

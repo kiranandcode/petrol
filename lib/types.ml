@@ -17,6 +17,7 @@ type 'a expr_list =
   | (::) : ('a expr * 'b expr_list) -> ('a * 'b) expr_list
 
 and 'a expr =
+  | NULL : 'a option Type.t -> 'a option expr
   | ADD : int expr * int expr -> int expr
   | SUB : int expr * int expr -> int expr
 
@@ -98,6 +99,7 @@ let rec values_expr : 'a . wrapped_value list -> 'a expr
   -> wrapped_value list =
   fun acc (type a) (expr: a expr) ->
   match expr with
+  | NULL _ -> acc
   | NULLABLE expr -> values_expr acc expr
   | COMPARE (_, l, r) ->
     values_expr (values_expr acc l) r
@@ -203,6 +205,7 @@ let pp_on_err : Format.formatter -> [ `ABORT | `FAIL | `IGNORE | `REPLACE | `ROL
 let rec pp_expr  : 'a . Format.formatter -> 'a expr -> unit =
   fun fmt (type a) (expr: a expr) ->
   match expr with
+  | NULL _ -> Format.fprintf fmt "NULL"
   | NULLABLE expr -> pp_expr fmt expr
   | NOT expr -> Format.fprintf fmt "NOT %a" pp_expr expr
   | EXISTS query ->

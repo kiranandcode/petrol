@@ -146,6 +146,11 @@ module Expr : sig
   (** [v := expr] returns an SQL expression that can be used with an
       update or insert clause to change the values in the database. *)
 
+  val unset : 'a t -> wrapped_assign
+  (** [unset v] returns an SQL expression that can be used with an
+      update query to set a field to NULL in the database. *)
+
+
   (** {1 Operators} *)
 
   val ( + ) : int t -> int t -> int t
