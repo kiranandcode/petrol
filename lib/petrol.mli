@@ -1,6 +1,11 @@
 type table_name
 (** Uniquely identifies a table in the system.  *)
 
+type ('ret_ty, 'query_kind) query
+  (** [('ret_ty, 'query_tag) query] represents an SQL query that
+      returns values of type ['ret_ty] and is a SQL query of kind
+      ['query_kind] -- see {!Petrol.Query.t}. *)
+
 module Type : sig
 
   (** Defines all supported SQL types. *)
@@ -154,6 +159,8 @@ module Expr : sig
   val ( >= ) : 'a t -> 'a t -> bool t
   val ( && ) : bool t -> bool t -> bool t
   val ( || ) : bool t -> bool t -> bool t
+  val not : bool t -> bool t
+  val exists: ('a, [> `SELECT | `SELECT_CORE ]) query -> bool t
 
   (** {1 Functions} *)
 
@@ -338,10 +345,14 @@ module Query : sig
 
   (** Provides an E-DSL for specifying SQL queries in OCaml.   *)
 
-  type ('ret_ty, 'query_kind) t
+  type ('ret_ty, 'query_kind) t = ('ret_ty, 'query_kind) query
   (** [('ret_ty, 'query_tag) t] represents an SQL query that returns
       values of type ['ret_ty] and is a SQL query of kind
       ['query_kind].*)
+
+  val pp : Format.formatter -> ('ret_ty, 'query_kind) t -> unit
+  (** [pp fmt q] prints the query [q] in a form that can be parsed by
+      an SQL engine. *)
 
   type join_op =
       LEFT                      (** LEFT join -- keep rows from the left table where the right column is NULL *)

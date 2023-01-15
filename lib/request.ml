@@ -42,7 +42,7 @@ let cache_many : (string, [ `Many | `Zero | `One ] QueryMap.t) Hashtbl.t = Hasht
 
 let make_zero : 'b . (unit,'b) Query.t -> (unit, [`Zero]) t =
   fun (type b) (query: (unit,b) Query.t) : (unit, [`Zero]) t ->
-  let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp_query query) in
+  let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   (* Format.printf "DEBUG: query is: %a, values are [%a]@.%!" Caqti_query.pp query_repr
    *   (Format.pp_print_list Expr.pp_wrapped_value) query_values; *)
@@ -53,7 +53,7 @@ let make_zero : 'b . (unit,'b) Query.t -> (unit, [`Zero]) t =
 
 let make_zero : 'b . (unit,'b) Query.t -> (unit, [`Zero]) t =
   fun (type b) (query: (unit,b) Query.t) : (unit, [`Zero]) t ->
-  let query_txt = Format.asprintf "%a" Query.pp_query query in
+  let query_txt = Format.asprintf "%a" Query.pp query in
   let query_ty = Query.query_ret_ty query in
   let query_values = Query.query_values query in
   let ty_map = match Hashtbl.find_opt cache_zero query_txt with
@@ -69,7 +69,7 @@ let make_zero : 'b . (unit,'b) Query.t -> (unit, [`Zero]) t =
 
 let make_one : 'a 'b . ('a,'b) Query.t -> ('a, [`One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`One]) t ->
-  let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp_query query) in
+  let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
   let ret_ty = Query.query_ret_ty query in
@@ -79,7 +79,7 @@ let make_one : 'a 'b . ('a,'b) Query.t -> ('a, [`One]) t =
 
 let make_one : 'a 'b . ('a,'b) Query.t -> ('a, [`One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`One]) t ->
-  let query_txt = Format.asprintf "%a" Query.pp_query query in
+  let query_txt = Format.asprintf "%a" Query.pp query in
   let query_ty = Query.query_ret_ty query in
   let query_values = Query.query_values query in
   let ty_map = match Hashtbl.find_opt cache_one query_txt with
@@ -95,7 +95,7 @@ let make_one : 'a 'b . ('a,'b) Query.t -> ('a, [`One]) t =
 
 let make_zero_or_one : 'a 'b . ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`Zero | `One]) t ->
-  let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp_query query) in
+  let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
   let ret_ty = Query.query_ret_ty query in
@@ -105,7 +105,7 @@ let make_zero_or_one : 'a 'b . ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
 
 let make_zero_or_one : 'a 'b . ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`Zero | `One]) t ->
-  let query_txt = Format.asprintf "%a" Query.pp_query query in
+  let query_txt = Format.asprintf "%a" Query.pp query in
   let query_ty = Query.query_ret_ty query in
   let query_values = Query.query_values query in
   let ty_map = match Hashtbl.find_opt cache_zero_or_one query_txt with
@@ -121,7 +121,7 @@ let make_zero_or_one : 'a 'b . ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
 
 let make_many : 'a 'b . ('a,'b) Query.t -> ('a, [`Many | `Zero | `One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`Many | `Zero | `One]) t ->
-  let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp_query query) in
+  let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
   let ret_ty = Query.query_ret_ty query in
@@ -131,7 +131,7 @@ let make_many : 'a 'b . ('a,'b) Query.t -> ('a, [`Many | `Zero | `One]) t =
 
 let make_many : 'a 'b . ('a,'b) Query.t -> ('a, [`Many | `Zero | `One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`Many | `Zero | `One]) t ->
-  let query_txt = Format.asprintf "%a" Query.pp_query query in
+  let query_txt = Format.asprintf "%a" Query.pp query in
   let query_ty = Query.query_ret_ty query in
   let query_values = Query.query_values query in
   let ty_map = match Hashtbl.find_opt cache_many query_txt with

@@ -5,6 +5,7 @@ module Query = Query
 module Request = Request
 
 type table_name = Types.table_name
+type ('ret_ty, 'query_kind) query = ('ret_ty, 'query_kind) Types.query
 
 let result_all_unit : (unit, 'e) result list -> (unit, 'e) result =
   fun ls ->
