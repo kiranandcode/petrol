@@ -442,6 +442,14 @@ module Query : sig
     (** [order_by ?direction fields expr] corresponds to the SQL [{expr}
         ORDER BY {direction} {fields}].  *)
 
+  val order_by_
+    : ?direction:[ `ASC | `DESC ] -> 'a Expr.expr_list
+    -> ('b, [< `SELECT | `SELECT_CORE ]) t -> ('b, [> `SELECT ]) t
+    (** [order_by_ ?direction fields expr] corresponds to the SQL
+        [{expr} ORDER BY {direction} {fields}]. (In contrast to
+        {!Petrol.Query.order_by}, this function allows passing a list
+        of elements to be ordered by) *)
+
 end
 
 module Request : sig

@@ -67,7 +67,7 @@ and (_, !'res) query =
     } -> ('a, [> `SELECT_CORE] as 'res) query
   | SELECT : {
       core: ('a, [< `SELECT_CORE ]) query;
-      order_by: ([`ASC | `DESC] * 'e expr) option;
+      order_by: ([`ASC | `DESC] * 'e expr_list) option;
       limit: int expr option;
       offset: int expr option
     } -> ('a, [> `SELECT] as 'res) query
@@ -166,7 +166,7 @@ and query_values : 'a 'b. wrapped_value list -> ('a,'b) query -> wrapped_value l
     acc
   | SELECT { core; order_by; limit; offset } ->
     let acc = query_values acc core in
-    let acc = Option.map (fun (_, expr) -> values_expr acc expr) order_by
+    let acc = Option.map (fun (_, expr) -> values_expr_list acc expr) order_by
               |> Option.value ~default:acc in
     let acc = Option.map (values_expr acc) limit |> Option.value ~default:acc in
     let acc = Option.map (values_expr acc) offset |> Option.value ~default:acc in
@@ -356,8 +356,8 @@ and pp_query: 'a 'b. Format.formatter ->
      Format.fprintf fmt "%a%a%a%a"
        pp_query core
        (pp_opt (fun fmt (order,vl) ->
-          Format.fprintf fmt "ORDER BY %a %a"
-            pp_expr vl pp_ordering order))
+          Format.fprintf fmt "ORDER BY (%a) %a"
+            pp_expr_list vl pp_ordering order))
        order_by
        (pp_opt (fun fmt vl ->
           Format.fprintf fmt "LIMIT %a" pp_expr vl))
