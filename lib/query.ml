@@ -131,23 +131,44 @@ let on_err : 'a . [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] -> ('c, 'a)
   | Types.UPDATE { table; on_err=_; set; where } -> UPDATE { table; on_err=Some on_err; set; where }
   | Types.INSERT { table; on_err=_; set } -> INSERT { table; on_err=Some on_err; set } 
 
-let limit by (table: (_, [< `SELECT | `SELECT_CORE] as 'ty) t) : (_, [> `SELECT]) t =
+let limit :
+  'a 'i . 
+  int Types.expr -> ('a, [< `SELECT | `SELECT_CORE ] as 'i) t ->
+  ('a, [> `SELECT ]) t =
+  fun (type a i) by (table: (a, i) t) : (a, [> `SELECT]) t ->
   match table with
   | Types.SELECT_CORE { exprs; table; join; where; group_by; having } ->
     SELECT { core=SELECT_CORE { exprs; table; join; where; group_by; having }; limit=Some by; offset=None; order_by=None}
   | Types.SELECT { core; order_by; limit=_; offset } ->
     SELECT { core; order_by; limit=Some by; offset }
+  | DELETE _
+  | UPDATE _
+  | INSERT _ -> invalid_arg "limit only supported for select"
 
-let offset by (table: (_, [< `SELECT | `SELECT_CORE] as 'ty) t) : (_, [> `SELECT]) t =
+let offset :
+  'a 'i . 
+  int Types.expr -> ('a, [< `SELECT | `SELECT_CORE ] as 'i) t ->
+  ('a, [> `SELECT ]) t =
+  fun (type a i) by (table: (a, i) t) : (a, [> `SELECT]) t ->
   match table with
   | Types.SELECT_CORE { exprs; table; join; where; group_by; having } ->
     SELECT { core=SELECT_CORE { exprs; table; join; where; group_by; having }; limit=None; offset=Some by; order_by=None}
   | Types.SELECT { core; order_by; limit; offset=_ } ->
     SELECT { core; order_by; limit; offset=Some by }
+  | DELETE _
+  | UPDATE _
+  | INSERT _ -> invalid_arg "offset only supported for select"
 
-let order_by ?(direction=`ASC) field (table: (_, [< `SELECT | `SELECT_CORE] as 'ty) t) : (_, [> `SELECT]) t =
+let order_by :
+  'a 'b. ?direction:[ `ASC | `DESC ] ->
+  'c Types.expr -> ('a, [< `SELECT | `SELECT_CORE] as 'b) t ->
+  ('a, [> `SELECT ]) t =
+  fun (type a b) ?(direction=`ASC) field (table: (a, b) t) : (a, [> `SELECT]) t ->
   match table with
   | Types.SELECT_CORE { exprs; table; join; where; group_by; having } ->
     SELECT { core=SELECT_CORE { exprs; table; join; where; group_by; having }; limit=None; offset=None; order_by=Some (direction,field)}
   | Types.SELECT { core; order_by=_; limit; offset } ->
     SELECT { core; order_by= Some(direction,field); limit; offset }
+  | DELETE _
+  | UPDATE _
+  | INSERT _ -> invalid_arg "order by only supported for select"

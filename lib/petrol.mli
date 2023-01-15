@@ -150,7 +150,6 @@ module Expr : sig
   (** [unset v] returns an SQL expression that can be used with an
       update query to set a field to NULL in the database. *)
 
-
   (** {1 Operators} *)
 
   val ( + ) : int t -> int t -> int t
@@ -431,15 +430,15 @@ module Query : sig
   (** [on_err err expr] corresponds to the SQL [{expr} ON ERR {err}].  *)
 
   val limit :
-    int Expr.t -> ('a, [ `SELECT | `SELECT_CORE ]) t -> ('a, [> `SELECT ]) t
+    int Expr.t -> ('a, [< `SELECT | `SELECT_CORE ]) t -> ('a, [> `SELECT ]) t
   (** [limit count expr] corresponds to the SQL [{expr} LIMIT {count}].  *)
 
   val offset
-    : int Expr.t -> ('a, [ `SELECT | `SELECT_CORE ]) t -> ('a, [> `SELECT ]) t
+    : int Expr.t -> ('a, [< `SELECT | `SELECT_CORE ]) t -> ('a, [> `SELECT ]) t
   (** [offset count expr] corresponds to the SQL [{expr} OFFSET {fields}].  *)
 
   val order_by
-    : ?direction:[ `ASC | `DESC ] -> 'a Expr.t -> ('b, [ `SELECT | `SELECT_CORE ]) t -> ('b, [> `SELECT ]) t
+    : ?direction:[ `ASC | `DESC ] -> 'a Expr.t -> ('b, [< `SELECT | `SELECT_CORE ]) t -> ('b, [> `SELECT ]) t
     (** [order_by ?direction fields expr] corresponds to the SQL [{expr}
         ORDER BY {direction} {fields}].  *)
 
