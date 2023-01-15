@@ -224,10 +224,10 @@ let rec pp_expr  : 'a . Format.formatter -> 'a expr -> unit =
     Format.fprintf fmt "(%a) - (%a)"
       pp_expr l pp_expr r
   | AND (l,r) ->
-    Format.fprintf fmt "%a AND %a"
+    Format.fprintf fmt "(%a) AND (%a)"
       pp_expr l pp_expr r
   | OR (l, r) ->
-    Format.fprintf fmt "%a AND %a"
+    Format.fprintf fmt "(%a) OR (%a)"
       pp_expr l pp_expr r
   | IS_NOT_NULL expr -> 
     Format.fprintf fmt "%a IS NOT NULL"
