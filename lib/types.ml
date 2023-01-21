@@ -331,6 +331,21 @@ and pp_expr_list : 'a . Format.formatter -> 'a expr_list -> unit =
     | [] -> ()
     | h :: t -> Format.fprintf fmt "%a%a"
                   pp_expr h pp_expr_list_inner t
+
+and pp_ordering_expr_list_inner : 'a . [> `ASC | `DESC] -> Format.formatter -> 'a expr_list -> unit =
+  fun ordering fmt (type a) (ls: a expr_list) -> match ls with
+    | [] -> ()
+    | h :: t -> Format.fprintf fmt ", %a %a%a"
+                  pp_expr h pp_ordering ordering
+                  (pp_ordering_expr_list_inner ordering) t
+
+and pp_ordering_expr_list : 'a . [> `ASC | `DESC] -> Format.formatter -> 'a expr_list -> unit =
+  fun ordering fmt (type a) (ls: a expr_list) -> match ls with
+    | [] -> ()
+    | h :: t -> Format.fprintf fmt "%a %a%a"
+                  pp_expr h pp_ordering ordering
+                  (pp_ordering_expr_list_inner ordering) t
+
 and pp_query: 'a 'b. Format.formatter ->
   ('a, 'b) query -> unit =
   fun fmt (type a b) (query: (a,b) query) ->
@@ -356,8 +371,8 @@ and pp_query: 'a 'b. Format.formatter ->
      Format.fprintf fmt "%a%a%a%a"
        pp_query core
        (pp_opt (fun fmt (order,vl) ->
-          Format.fprintf fmt "ORDER BY (%a) %a"
-            pp_expr_list vl pp_ordering order))
+        Format.fprintf fmt "ORDER BY %a"
+            (pp_ordering_expr_list order) vl))
        order_by
        (pp_opt (fun fmt vl ->
           Format.fprintf fmt "LIMIT %a" pp_expr vl))
