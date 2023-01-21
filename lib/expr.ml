@@ -153,7 +153,7 @@ let abs expr = Types.ABS(expr)
 let changes = Types.CHANGES
 let glob ~pat:x y = Types.GLOB (x,y)
 let coalesce exprs = Types.COALESCE exprs
-let like x ~pat:y = Types.LIKE (x,y)
+let like x ~pat:y = Types.LIKE (y,x)
 
 let max_of exprs = Types.MAX_OF exprs
 let min_of exprs = Types.MIN_OF exprs
