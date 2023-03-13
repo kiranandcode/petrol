@@ -137,6 +137,10 @@ module Expr : sig
   (** [is_not_null e] constructs an SQL expression that is [TRUE] iff
       the expression [e] is not [NULL] and [FALSE] otherwise.  *)
 
+  val is_null : 'a t -> bool t
+  (** [is_null e] constructs an SQL expression that is [TRUE] iff
+      the expression [e] is [NULL] and [FALSE] otherwise.  *)
+
   val coerce : 'a t -> 'b Type.t -> 'b t
   (** [coerce expr ty] coerces expression [expr] to the type
       [ty]. This coercion is not checked, so make sure you know what
