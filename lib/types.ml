@@ -25,6 +25,7 @@ and 'a expr =
   | OR : bool expr * bool expr -> bool expr
   | COMPARE : comparison * 'a expr * 'a expr -> bool expr
   | IS_NOT_NULL: 'a expr -> bool expr
+  | IS_NULL: 'a expr -> bool expr
   | NOT : bool expr -> bool expr
   | EXISTS : ('a, [> `SELECT | `SELECT_CORE]) query -> bool expr
 
@@ -109,8 +110,10 @@ let rec values_expr : 'a . wrapped_value list -> 'a expr
   | OR (l, r)
   | AND (l, r) ->
     values_expr (values_expr acc l) r
-  | IS_NOT_NULL expr ->
-    values_expr acc expr
+
+  | IS_NULL expr -> values_expr acc expr
+  | IS_NOT_NULL expr -> values_expr acc expr
+
   | NOT expr -> values_expr acc expr
   | EXISTS query ->
     query_values acc query
@@ -234,6 +237,9 @@ let rec pp_expr  : 'a . Format.formatter -> 'a expr -> unit =
       pp_expr l pp_expr r
   | IS_NOT_NULL expr -> 
     Format.fprintf fmt "%a IS NOT NULL"
+      pp_expr expr
+  | IS_NULL expr -> 
+    Format.fprintf fmt "%a IS NULL"
       pp_expr expr
   | FIELD (table_name, field_name, _ty) ->
     let table_name = snd table_name in

@@ -46,6 +46,7 @@ let rec ty: 'a . 'a t -> 'a Type.t = fun (type a) (expr: a t) : a Type.t ->
   | OR (_, _) -> BOOL
   | COMPARE (_, _, _) -> BOOL
   | IS_NOT_NULL _ -> BOOL
+  | IS_NULL _ -> BOOL
   | FIELD (_, _, ty) -> ty
   | CONST (_, ty) -> ty
   | CONST_STATIC (_, ty) -> ty
@@ -137,6 +138,7 @@ let not cond = Types.NOT cond
 let exists q = Types.EXISTS q
 
 let is_not_null expr = Types.IS_NOT_NULL expr
+let is_null expr = Types.IS_NULL expr
 let coerce expr ty = Types.COERCETO (expr,ty)
 let as_ expr ~name = Types.AS (expr,name), Types.REF (name, ty expr)
 
@@ -154,6 +156,7 @@ let changes = Types.CHANGES
 let glob ~pat:x y = Types.GLOB (x,y)
 let coalesce exprs = Types.COALESCE exprs
 let like x ~pat:y = Types.LIKE (y,x)
+
 
 let max_of exprs = Types.MAX_OF exprs
 let min_of exprs = Types.MIN_OF exprs
