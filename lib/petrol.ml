@@ -65,7 +65,7 @@ module StaticSchema = struct
         match table with
         | [] -> []
         | (field_name, field_ty, _) :: rest ->
-          ((FIELD ((id, name), field_name,field_ty)) : _ Expr.t)
+          ((Types.FIELD ((id, name), field_name,field_ty)) : _ Expr.t)
           :: to_table name rest in
     let table = to_table name tbl in
     (id, name), table
@@ -141,54 +141,54 @@ module VersionedSchema = struct
         match table with
         | [] -> []
         | (field_name, field_ty, _) :: rest ->
-          ((FIELD ((id, name), field_name,field_ty)) : _ Expr.t)
+          ((Types.FIELD ((id, name), field_name,field_ty)) : _ Expr.t)
           :: to_table name rest in
     let table = to_table name tbl in
     (id, name), table
 
-  let set_version t version con =
+  let set_version ~bool t version con =
     let open Lwt_result.Syntax in
     let* () = StaticSchema.initialise t.version_db con in
     let version_str = String.concat "." (List.map Int.to_string version) in
     let (module DB: Caqti_lwt.CONNECTION) = con in
     let* () =
       Query.delete ~from:t.version_table_name
-      |> Request.make_zero
+      |> Request.make_zero ~bool
       |> exec con in
     let* () =
       Query.insert ~table:t.version_table_name
-        ~values:Expr.[t.version_table_field := s version_str]
-      |> Request.make_zero
+        ~values:Expr.Common.[t.version_table_field := s version_str]
+      |> Request.make_zero ~bool
       |> exec con in
     Lwt.return_ok ()
 
-  let get_current_version t con =
+  let get_current_version ~bool t con =
     let open Lwt_result.Syntax in
     let* () = StaticSchema.initialise t.version_db con in
     let* res =
-      Query.select Expr.[t.version_table_field] ~from:t.version_table_name
-      |> Request.make_zero_or_one
+      Query.select Expr.Common.[t.version_table_field] ~from:t.version_table_name
+      |> Request.make_zero_or_one ~bool
       |> find_opt con in
     match res with
     | None ->
-      let* () = set_version t t.version con in
+      let* () = set_version ~bool t t.version con in
       Lwt.return_ok t.version
     | Some (old_version, ()) ->
       let old_version = old_version |> String.split_on_char '.' |> List.map int_of_string in
       Lwt.return_ok old_version
 
-  let migrations_needed t ((module DB: Caqti_lwt.CONNECTION) as conn) =
+  let migrations_needed ~bool t ((module DB: Caqti_lwt.CONNECTION) as conn) =
     let open Lwt_result.Syntax in
-    let* current_version = get_current_version t conn in
+    let* current_version = get_current_version ~bool t conn in
     match compare_version current_version t.version with
     | 0 -> Lwt.return_ok false
     | v when v < 0 -> Lwt.return_ok true
     | _ ->
       Lwt.return_error (`Newer_version_than_supported current_version)
 
-  let initialise t ((module DB: Caqti_lwt.CONNECTION) as conn) =
+  let initialise ~bool t ((module DB: Caqti_lwt.CONNECTION) as conn) =
     let open Lwt_result.Syntax in
-    let* current_version = get_current_version t conn in
+    let* current_version = get_current_version ~bool t conn in
     match compare_version current_version t.version with
     | 0 -> (* same version *)
       (* collect queries *)
@@ -257,7 +257,7 @@ module VersionedSchema = struct
               |> Lwt.map result_all_unit)
           |> Lwt_seq.to_list
           |> Lwt.map result_all_unit in
-        let* () = set_version t t.version conn in
+        let* () = set_version ~bool t t.version conn in
         Lwt.return_ok ()
       end
     | _ ->

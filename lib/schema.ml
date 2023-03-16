@@ -219,7 +219,7 @@ let rec expr_list_to_column_names : 'a . Types.table_name -> 'a Expr.expr_list -
   fun (type a) table_name (ls: a Types.expr_list) : string list ->
   match ls with
   | [] -> []
-  | FIELD (table_name', name, _) :: t ->
+  | Types.FIELD (table_name', name, _) :: t ->
     if not (table_name = table_name') then
       invalid_arg "foreign key constraint uses fields from a \
                    different table than the one specified";

@@ -34,15 +34,15 @@ let query_values query = List.rev (Types.query_values [] query)
 let pp = Types.pp_query
 let show q = Format.asprintf "%a" pp q
 
-let query_ret_ty: 'a 'b. ('a,'b) t -> 'a Type.ty_list =
-  fun (type a b) (query: (a,b) t) : a Type.ty_list ->
+let query_ret_ty: 'a 'b. bool:bool Type.t -> ('a,'b) t -> 'a Type.ty_list =
+  fun (type a b) ~bool (query: (a,b) t) : a Type.ty_list ->
   match query with
   | SELECT_CORE { exprs; table=_; join=_; where=_; group_by=_; having=_ } ->
-    Expr.ty_expr_list exprs
+    Expr.ty_expr_list ~bool exprs
   | SELECT { core=
                SELECT_CORE { exprs; table=_; join=_; where=_; group_by=_; having=_ };
              order_by=_; limit=_; offset=_ } ->
-    Expr.ty_expr_list exprs      
+    Expr.ty_expr_list ~bool exprs      
   | DELETE _ -> Nil
   | UPDATE _ -> Nil
   | INSERT _ -> Nil
@@ -64,7 +64,7 @@ let where : ('a,'c) where_fun
     let update_where where by =
       match where with
         None -> Some by
-      | Some old_by -> Some Expr.(by && old_by) in
+      | Some old_by -> Some Expr.Common.(by && old_by) in
     match table with
     | Types.SELECT_CORE { exprs; table; join; where; group_by; having } ->
       let where = update_where where by in
