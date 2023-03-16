@@ -2,212 +2,285 @@ type table_name
 (** Uniquely identifies a table in the system.  *)
 
 type ('ret_ty, 'query_kind) query
-  (** [('ret_ty, 'query_tag) query] represents an SQL query that
-      returns values of type ['ret_ty] and is a SQL query of kind
-      ['query_kind] -- see {!Petrol.Query.t}. *)
+(** [('ret_ty, 'query_tag) query] represents an SQL query that
+    returns values of type ['ret_ty] and is a SQL query of kind
+    ['query_kind] -- see {!Petrol.Query.t}. *)
 
-module Type : sig
+type 'a expr = 'a Expr.t
+(** ['a expr] represents an SQL expression that evaluates to a value of OCaml type ['a] *)
 
-  (** Defines all supported SQL types. *)
+val pp_expr: Format.formatter -> 'a expr -> unit
+(** [pp_expr fmt expr] pretty prints the expression [expr].
 
-  type 'a t = 'a Type.t
-  (** Represents a SQL type. *)
+    {b Note} You shouldn't have to call this yourself. Petrol usually
+    takes care of this for you, but you may want to use it for
+    debugging. *)
 
-  val bool : bool t
-  (** [bool] represents the SQL boolean type (or INTEGER if BOOL does not exist). *)
+type 'a expr_list = 'a Expr.expr_list
+(** Represents a heterogeneous sequence of SQL expressions.
 
-  val int : int t
-  (** [int] represents the SQL INTEGER type.  *)
+    See {!Sqlite3.Expr} to access its constructors. *)
 
-  val real : float t
-  (** [real] represents the SQL REAL type.  *)
+val pp_expr_list : Format.formatter -> 'a expr_list -> unit
+(** [pp_expr_list fmt exps] pretty prints the expression list [exps]
+    of type {!expr_list}.
 
-  val text : string t
-  (** [text] represents the SQL TEXT type.  *)
-
-  val blob : string t
-  (** [blob] represents the SQL BLOB type.  *)
-
-end 
+    See also {!expr} and {!pp_expr}. *)
 
 
-module Expr : sig
+type ('res, 'multiplicity) request
+(** Represents a compiled SQL database request.  *)
 
-  (** Provides an SQL E-DSL for writing well-typed SQL expressions. *)
+type 'a ty
+(** Represents an SQL data type that maps to an OCaml type ['a]. *)
 
-  type 'a t
-  (** ['a t] represents an SQL expression that produces a value
-      corresponding to the type ['a].  *)
+val pp_ty : Format.formatter -> 'a ty -> unit
+(** [pp_ty ty] pretty prints the value [ty] of type {!ty}.
 
-  type 'a expr_list =
-    | [] : unit expr_list
-    | (::) : ('a t * 'b expr_list) -> ('a * 'b) expr_list (** *)
-  (** Represents a heterogeneous sequence of SQL expressions.
+    See also {!expr} and {!pp_expr}. *)
 
-      {b Note} Provided you have opened the Expr module, you can use
-      List syntax to construct such lists:
+module Sqlite3 : sig
 
-      {[
-        Petrol.Expr.[i 1; bl false]
-        (* - : (int * (bool * ())) Petrol.Expr.expr_list *)
-      ]}
-  *)
+  module Type : sig
 
-  type wrapped_assign
-  (** An opaque wrapper that represents an assignment of a value to a
-      particular field in a table.  *)
+    (** Defines all supported Sqlite types. *)
 
-  val pp: Format.formatter -> 'a t -> unit
-  (** [pp fmt expr] pretty prints an SQL expression as a string that
-      can be parsed by an SQL engine.  *)
+    type 'a t = 'a ty
+    (** Represents a SQL type. *)
 
-  (** {1 Constants}*)
+    val bool : bool t
+    (** [bool] represents the SQL boolean type (or INTEGER if BOOL does not exist). *)
 
-  (** The following functions define constant value expressions.
+    val int : int t
+    (** [int] represents the SQL INTEGER type.  *)
 
-      {b Note} For each type, there are two flavours of constant
-      expression: variable and static.
+    val real : float t
+    (** [real] represents the SQL REAL type.  *)
 
-      The key difference between the two is in terms of how they are
-      represented in the final SQL query - in particular, variable
-      constant expressions are encoded as holes (?) in the query, to
-      which a constant value is supplied, whereas static constant
-      expressions are encoded directly in the query string.
+    val text : string t
+    (** [text] represents the SQL TEXT type.  *)
 
-      As Petrol functions cache the construction of SQL queries by
-      their final string representation, you should prefer the dynamic
-      form if you expect the constant value to change frequently - for
-      example, if it is a constant value that you are receiving from
-      elsewhere. Use the static form if you know that the value
-      doesn't change and will always be the same.  *)
+    val blob : string t
+    (** [blob] represents the SQL BLOB type.  *)
 
-  val i : int -> int t
-  (** [i v] returns an expression that evaluates to the integer value
-      [v].  *)
+  end 
 
-  val f : float -> float t
-  (** [f v] returns an expression that evaluates to the real value
-      [v].  *)
 
-  val s : string -> string t
-  (** [s v] returns an expression that evaluates to the string value
-      [v].  *)
+  module Expr : sig
 
-  val b : string -> string t
-  (** [b v] returns an expression that evaluates to the bytes value
-      [v].  *)
+    (** Provides an SQL E-DSL for writing well-typed SQL expressions. *)
 
-  val bl : bool -> bool t
-  (** [bl v] returns an expression that evaluates to the bool value
-      [v].  *)
+    type 'a t = 'a Expr.t
+    (** ['a t] represents an SQL expression that produces a value
+        corresponding to the type ['a].  *)
 
-  val i_stat : int -> int t
-  (** [i_stat v] returns a static expression that evaluates to the
-      integer value [v].  *)
+    type 'a expr_list = 'a Expr.expr_list =
+      | [] : unit expr_list
+      | (::) : ('a expr * 'b expr_list) -> ('a * 'b) expr_list
+      (** Represents a heterogeneous sequence of SQL expressions.
 
-  val f_stat : float -> float t
-  (** [f_stat v] returns a static expression that evaluates to the
-      real value [v].  *)
+          {b Note} Provided you have opened the Expr module, you can use
+          List syntax to construct such lists:
 
-  val s_stat : string -> string t
-  (** [s_stat v] returns a static expression that evaluates to the
-      string value [v].  *)
+          {[
+            Petrol.Expr.[i 1; bl false]
+            (* - : (int * (bool * ())) Petrol.Expr.expr_list *)
+          ]}
+      *)
 
-  val b_stat : string -> string t
-  (** [b_stat v] returns a static expression that evaluates to the
-      bytes value [v].  *)
 
-  val true_ : bool t
-  (** [true_] represents the SQL constant [TRUE].  *)
+    type wrapped_assign
+    (** An opaque wrapper that represents an assignment of a value to a
+        particular field in a table.  *)
 
-  val false_ : bool t
-  (** [false_] represents the SQL constant [FALSE].  *)
+    val pp: Format.formatter -> 'a t -> unit
+    (** [pp fmt expr] pretty prints an SQL expression as a string that
+        can be parsed by an SQL engine.  *)
 
-  (** {1 Book-keeping: Types, Naming, Nulls}*)
+    (** {1 Constants}*)
 
-  val as_ : 'a t -> name:string -> 'a t * 'a t
-  (** [as_ exp ~name] returns a tuple [(exp',exp'_ref)] where [exp']
-      is the SQL expression [exp AS name] that names [exp] as [name],
-      and [exp'_ref] is simply [name]. *)
+    (** The following functions define constant value expressions.
 
-  val nullable: 'a t -> 'a option t
-  (** [nullable e] encodes the fact that the expression [e] may return [NULL].  *)
+        {b Note} For each type, there are two flavours of constant
+        expression: variable and static.
 
-  val is_not_null : 'a t -> bool t
-  (** [is_not_null e] constructs an SQL expression that is [TRUE] iff
-      the expression [e] is not [NULL] and [FALSE] otherwise.  *)
+        The key difference between the two is in terms of how they are
+        represented in the final SQL query - in particular, variable
+        constant expressions are encoded as holes (?) in the query, to
+        which a constant value is supplied, whereas static constant
+        expressions are encoded directly in the query string.
 
-  val is_null : 'a t -> bool t
-  (** [is_null e] constructs an SQL expression that is [TRUE] iff
-      the expression [e] is [NULL] and [FALSE] otherwise.  *)
+        As Petrol functions cache the construction of SQL queries by
+        their final string representation, you should prefer the dynamic
+        form if you expect the constant value to change frequently - for
+        example, if it is a constant value that you are receiving from
+        elsewhere. Use the static form if you know that the value
+        doesn't change and will always be the same.  *)
 
-  val coerce : 'a t -> 'b Type.t -> 'b t
-  (** [coerce expr ty] coerces expression [expr] to the type
-      [ty]. This coercion is not checked, so make sure you know what
-      you're doing or it could fail at runtime.  *)
+    val i : int -> int t
+    (** [i v] returns an expression that evaluates to the integer value
+        [v].  *)
 
-  val (:=) : 'a t -> 'a t -> wrapped_assign
-  (** [v := expr] returns an SQL expression that can be used with an
-      update or insert clause to change the values in the database. *)
+    val f : float -> float t
+    (** [f v] returns an expression that evaluates to the real value
+        [v].  *)
 
-  val unset : 'a t -> wrapped_assign
-  (** [unset v] returns an SQL expression that can be used with an
-      update query to set a field to NULL in the database. *)
+    val s : string -> string t
+    (** [s v] returns an expression that evaluates to the string value
+        [v].  *)
 
-  (** {1 Operators} *)
+    val b : string -> string t
+    (** [b v] returns an expression that evaluates to the bytes value
+        [v].  *)
 
-  val ( + ) : int t -> int t -> int t
-  val ( - ) : int t -> int t -> int t
+    val bl : bool -> bool t
+    (** [bl v] returns an expression that evaluates to the bool value
+        [v].  *)
 
-  val ( = ) : 'a t -> 'a t -> bool t
-  val ( <> ) : 'a t -> 'a t -> bool t
-  val ( <= ) : 'a t -> 'a t -> bool t
-  val ( < ) : 'a t -> 'a t -> bool t
-  val ( > ) : 'a t -> 'a t -> bool t
-  val ( >= ) : 'a t -> 'a t -> bool t
-  val ( && ) : bool t -> bool t -> bool t
-  val ( || ) : bool t -> bool t -> bool t
-  val not : bool t -> bool t
-  val exists: ('a, [> `SELECT | `SELECT_CORE ]) query -> bool t
+    val i_stat : int -> int t
+    (** [i_stat v] returns a static expression that evaluates to the
+        integer value [v].  *)
 
-  (** {1 Functions} *)
+    val f_stat : float -> float t
+    (** [f_stat v] returns a static expression that evaluates to the
+        real value [v].  *)
 
-  val count : ?distinct:bool -> 'a expr_list -> int t
+    val s_stat : string -> string t
+    (** [s_stat v] returns a static expression that evaluates to the
+        string value [v].  *)
 
-  val count_star : int t
+    val b_stat : string -> string t
+    (** [b_stat v] returns a static expression that evaluates to the
+        bytes value [v].  *)
 
-  val max : ?distinct:bool -> int t -> int t
+    val true_ : bool t
+    (** [true_] represents the SQL constant [TRUE].  *)
 
-  val min : ?distinct:bool -> int t -> int t
+    val false_ : bool t
+    (** [false_] represents the SQL constant [FALSE].  *)
 
-  val sum : ?distinct:bool -> int t -> int t
+    (** {1 Book-keeping: Types, Naming, Nulls}*)
 
-  val total : ?distinct:bool -> int t -> int t
+    val as_ : 'a t -> name:string -> 'a t * 'a t
+    (** [as_ exp ~name] returns a tuple [(exp',exp'_ref)] where [exp']
+        is the SQL expression [exp AS name] that names [exp] as [name],
+        and [exp'_ref] is simply [name]. *)
 
-  val group_concat: ?distinct:bool -> ?sep_by:string t -> string t -> string t
+    val nullable: 'a t -> 'a option t
+    (** [nullable e] encodes the fact that the expression [e] may return [NULL].  *)
 
-  val abs : int t -> int t
+    val is_not_null : 'a t -> bool t
+    (** [is_not_null e] constructs an SQL expression that is [TRUE] iff
+        the expression [e] is not [NULL] and [FALSE] otherwise.  *)
 
-  val changes : int t
+    val is_null : 'a t -> bool t
+    (** [is_null e] constructs an SQL expression that is [TRUE] iff
+        the expression [e] is [NULL] and [FALSE] otherwise.  *)
 
-  val glob : pat:string t -> string t -> bool t
+    val coerce : 'a t -> 'b Type.t -> 'b t
+    (** [coerce expr ty] coerces expression [expr] to the type
+        [ty]. This coercion is not checked, so make sure you know what
+        you're doing or it could fail at runtime.  *)
 
-  val coalesce : 'a t list -> 'a t
+    val (:=) : 'a t -> 'a t -> wrapped_assign
+    (** [v := expr] returns an SQL expression that can be used with an
+        update or insert clause to change the values in the database. *)
 
-  val like : string t -> pat:string t -> bool t
+    val unset : 'a t -> wrapped_assign
+    (** [unset v] returns an SQL expression that can be used with an
+        update query to set a field to NULL in the database. *)
 
-  val max_of : int t list -> int t
+    (** {1 Operators} *)
 
-  val min_of : int t list -> int t
+    val ( + ) : int t -> int t -> int t
+    val ( - ) : int t -> int t -> int t
 
-  val random : int t
+    val ( = ) : 'a t -> 'a t -> bool t
+    val ( <> ) : 'a t -> 'a t -> bool t
+    val ( <= ) : 'a t -> 'a t -> bool t
+    val ( < ) : 'a t -> 'a t -> bool t
+    val ( > ) : 'a t -> 'a t -> bool t
+    val ( >= ) : 'a t -> 'a t -> bool t
+    val ( && ) : bool t -> bool t -> bool t
+    val ( || ) : bool t -> bool t -> bool t
+    val not : bool t -> bool t
+    val exists: ('a, [> `SELECT | `SELECT_CORE ]) query -> bool t
 
-  val lower : string t -> string t
+    (** {1 Functions} *)
 
-  val upper : string t -> string t
+    val count : ?distinct:bool -> 'a expr_list -> int t
+
+    val count_star : int t
+
+    val max : ?distinct:bool -> int t -> int t
+
+    val min : ?distinct:bool -> int t -> int t
+
+    val sum : ?distinct:bool -> int t -> int t
+
+    val total : ?distinct:bool -> int t -> int t
+
+    val group_concat: ?distinct:bool -> ?sep_by:string t -> string t -> string t
+
+    val abs : int t -> int t
+
+    val changes : int t
+
+    val glob : pat:string t -> string t -> bool t
+
+    val coalesce : 'a t list -> 'a t
+
+    val like : string t -> pat:string t -> bool t
+
+    val max_of : int t list -> int t
+
+    val min_of : int t list -> int t
+
+    val random : int t
+
+    val lower : string t -> string t
+
+    val upper : string t -> string t
+
+  end
+
+
+  module Request : sig
+
+    (** This module defines a request type [t] that can be executed by
+        Caqti (see {!exec}, {!find}, {!find_opt}). The functions defined
+        in this module cache their inputs, so it is safe to call these
+        repeatedly.
+
+        {b Note} In order to cache a query, Petrol uses the string
+        representation of the query with holes for variables as the
+        cache key -- this means that you are highly recommended to {i
+        not} use the static constant functions for any values that
+        change frequently and instead use the non-static constant
+        functions. *)
+
+    type ('res, 'multiplicity) t
+    (** Represents a compiled SQL database request.  *)
+
+    val make_zero : (unit, 'b) Query.t -> (unit, [ `Zero ]) t
+    (** [make_zero query] constructs a SQL request with multiplicity
+        zero from the query [query].  *)
+
+    val make_one : ('a, 'b) Query.t -> ('a, [ `One ]) t
+    (** [make_one query] constructs a SQL request with multiplicity
+        one from the query [query].  *)
+
+    val make_zero_or_one : ('a, 'b) Query.t -> ('a, [ `One | `Zero ]) t
+    (** [make_one query] constructs a SQL request with multiplicity
+        zero or one from the query [query].  *)
+
+    val make_many : ('a, 'b) Query.t -> ('a, [ `Many | `One | `Zero ]) t
+    (** [make_one query] constructs a SQL request with multiplicity
+        zero or more from the query [query].  *)
+
+  end
 
 end
-
 
 module Schema : sig
 
@@ -443,8 +516,8 @@ module Query : sig
 
   val order_by
     : ?direction:[ `ASC | `DESC ] -> 'a Expr.t -> ('b, [< `SELECT | `SELECT_CORE ]) t -> ('b, [> `SELECT ]) t
-    (** [order_by ?direction fields expr] corresponds to the SQL [{expr}
-        ORDER BY {direction} {fields}].  *)
+  (** [order_by ?direction fields expr] corresponds to the SQL [{expr}
+      ORDER BY {direction} {fields}].  *)
 
   val order_by_
     : ?direction:[ `ASC | `DESC ] -> 'a Expr.expr_list
@@ -453,41 +526,6 @@ module Query : sig
         [{expr} ORDER BY {direction} {fields}]. (In contrast to
         {!Petrol.Query.order_by}, this function allows passing a list
         of elements to be ordered by) *)
-
-end
-
-module Request : sig
-
-  (** This module defines a request type [t] that can be executed by
-      Caqti (see {!exec}, {!find}, {!find_opt}). The functions defined
-      in this module cache their inputs, so it is safe to call these
-      repeatedly.
-
-      {b Note} In order to cache a query, Petrol uses the string
-      representation of the query with holes for variables as the
-      cache key -- this means that you are highly recommended to {i
-      not} use the static constant functions for any values that
-      change frequently and instead use the non-static constant
-      functions. *)
-
-  type ('res, 'multiplicity) t
-  (** Represents a compiled SQL database request.  *)
-
-  val make_zero : (unit, 'b) Query.t -> (unit, [ `Zero ]) t
-  (** [make_zero query] constructs a SQL request with multiplicity
-      zero from the query [query].  *)
-
-  val make_one : ('a, 'b) Query.t -> ('a, [ `One ]) t
-  (** [make_one query] constructs a SQL request with multiplicity
-      one from the query [query].  *)
-
-  val make_zero_or_one : ('a, 'b) Query.t -> ('a, [ `One | `Zero ]) t
-  (** [make_one query] constructs a SQL request with multiplicity
-      zero or one from the query [query].  *)
-
-  val make_many : ('a, 'b) Query.t -> ('a, [ `Many | `One | `Zero ]) t
-  (** [make_one query] constructs a SQL request with multiplicity
-      zero or more from the query [query].  *)
 
 end
 
