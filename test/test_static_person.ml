@@ -9,6 +9,7 @@ module Person = struct
 
   module Sql = struct
     open Petrol
+    open Petrol.Sqlite3
     let t, Expr.[name;age] =
       StaticSchema.declare_table db ~name:"person"
         Schema.[

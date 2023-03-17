@@ -71,6 +71,9 @@ module Common = struct
   let exists q = Types.Common.EXISTS q
   let in_ expr query = Types.Common.IN (expr,query)
 
+  let between ~lower ~upper x = Types.Common.BETWEEN (x,lower,upper)
+  let not_between ~lower ~upper x = Types.Common.NOT_BETWEEN (x,lower,upper)
+
   let is_not_null expr = Types.Common.IS_NOT_NULL expr
   let is_null expr = Types.Common.IS_NULL expr
   let coerce expr ty = Types.COERCETO (expr,ty)

@@ -1,43 +1,85 @@
 type table_name
 (** Uniquely identifies a table in the system.  *)
 
+module Expr : sig
+
+  (** Defines an extensible embedding of SQL expressions.  *)
+
+  type 'a t
+  (** ['a t] represents an SQL expression that evaluates to a value of
+      OCaml type ['a] *)
+
+  val pp: Format.formatter -> 'a t -> unit
+  (** [pp fmt expr] pretty prints the expression [expr].
+
+      {b Note} You shouldn't have to call this yourself. Petrol usually
+      takes care of this for you, but you may want to use it for
+      debugging. *)
+
+  type wrapped_assign
+  (** An opaque wrapper that represents an assignment of a value to a
+      particular field in a table.  *)
+
+  (** Represents a heterogeneous sequence of SQL expressions. *)
+  type 'a expr_list =
+    | [] : unit expr_list
+    | (::) : ('a t * 'b expr_list) -> ('a * 'b) expr_list
+
+  val pp_expr_list : Format.formatter -> 'a expr_list -> unit
+  (** [pp_expr_list fmt exps] pretty prints the expression list [exps]
+      of type {!expr_list}.
+
+      See also {!t} and {!pp}. *)
+
+
+end
+
+module Type : sig
+
+  type 'a t
+  (** Represents an SQL data type that maps to an OCaml type ['a]. *)
+
+  val pp: Format.formatter -> 'a t -> unit
+  val show : 'a t -> string
+
+  val custom : ty:'a Caqti_type.t -> repr:string -> 'a t
+  (** [custom ~ty ~repr] creates a new SQL type that is represented by
+      the Caqti type [ty], and  *)
+
+  val pp_value : 'a t -> Format.formatter -> 'a -> unit
+  (** [pp_value ty fmt vl] returns a pretty printer for values of a type [ty]. *)
+
+  module Numeric : sig
+
+    (** Poor man's type classes for numeric arguments. *)
+
+    (** ['a integral] represents an integral type. *)
+    type 'a integral =
+      'a Type.Numeric.integral =
+        Int : int integral
+      | Int32 : int32 integral
+      | Int64 : int64 integral
+
+    (** ['a t] represents a numeric type. *)
+    type 'a t =
+      'a Type.Numeric.t =
+        Int : int t
+      | Int32 : int32 t
+      | Int64 : int64 t
+      | Real : float t
+  end
+
+end
+
 type ('ret_ty, 'query_kind) query
 (** [('ret_ty, 'query_tag) query] represents an SQL query that
     returns values of type ['ret_ty] and is a SQL query of kind
     ['query_kind] -- see {!Petrol.Query.t}. *)
 
-type 'a expr = 'a Expr.t
-(** ['a expr] represents an SQL expression that evaluates to a value of OCaml type ['a] *)
-
-val pp_expr: Format.formatter -> 'a expr -> unit
-(** [pp_expr fmt expr] pretty prints the expression [expr].
-
-    {b Note} You shouldn't have to call this yourself. Petrol usually
-    takes care of this for you, but you may want to use it for
-    debugging. *)
-
-type 'a expr_list = 'a Expr.expr_list
-(** Represents a heterogeneous sequence of SQL expressions.
-
-    See {!Sqlite3.Expr} to access its constructors. *)
-
-val pp_expr_list : Format.formatter -> 'a expr_list -> unit
-(** [pp_expr_list fmt exps] pretty prints the expression list [exps]
-    of type {!expr_list}.
-
-    See also {!expr} and {!pp_expr}. *)
-
 
 type ('res, 'multiplicity) request
 (** Represents a compiled SQL database request.  *)
 
-type 'a ty
-(** Represents an SQL data type that maps to an OCaml type ['a]. *)
-
-val pp_ty : Format.formatter -> 'a ty -> unit
-(** [pp_ty ty] pretty prints the value [ty] of type {!ty}.
-
-    See also {!expr} and {!pp_expr}. *)
 
 module Sqlite3 : sig
 
@@ -45,7 +87,7 @@ module Sqlite3 : sig
 
     (** Defines all supported Sqlite types. *)
 
-    type 'a t = 'a ty
+    type 'a t = 'a Type.t
     (** Represents a SQL type. *)
 
     val bool : bool t
@@ -63,6 +105,8 @@ module Sqlite3 : sig
     val blob : string t
     (** [blob] represents the SQL BLOB type.  *)
 
+    module Numeric = Type.Numeric
+
   end 
 
 
@@ -74,28 +118,24 @@ module Sqlite3 : sig
     (** ['a t] represents an SQL expression that produces a value
         corresponding to the type ['a].  *)
 
+    (** Represents a heterogeneous sequence of SQL expressions.
+
+        {b Note} Provided you have opened the Expr module, you can use
+        List syntax to construct such lists:
+
+        {[
+          open Petrol.Sqlite3
+          Expr.[i 1; bl false]
+          (* - : (int * (bool * ())) Expr.expr_list *)
+        ]}
+    *)
     type 'a expr_list = 'a Expr.expr_list =
       | [] : unit expr_list
-      | (::) : ('a expr * 'b expr_list) -> ('a * 'b) expr_list
-      (** Represents a heterogeneous sequence of SQL expressions.
+      | (::) : ('a t * 'b expr_list) -> ('a * 'b) expr_list
 
-          {b Note} Provided you have opened the Expr module, you can use
-          List syntax to construct such lists:
-
-          {[
-            Petrol.Expr.[i 1; bl false]
-            (* - : (int * (bool * ())) Petrol.Expr.expr_list *)
-          ]}
-      *)
-
-
-    type wrapped_assign
+    type wrapped_assign = Expr.wrapped_assign
     (** An opaque wrapper that represents an assignment of a value to a
         particular field in a table.  *)
-
-    val pp: Format.formatter -> 'a t -> unit
-    (** [pp fmt expr] pretty prints an SQL expression as a string that
-        can be parsed by an SQL engine.  *)
 
     (** {1 Constants}*)
 
@@ -194,6 +234,14 @@ module Sqlite3 : sig
 
     val ( + ) : int t -> int t -> int t
     val ( - ) : int t -> int t -> int t
+    val ( * ) : int t -> int t -> int t
+    val ( / ) : int t -> int t -> int t
+
+    val ( +. ) : float t -> float t -> float t
+    val ( -. ) : float t -> float t -> float t
+    val ( *. ) : float t -> float t -> float t
+    val ( /. ) : float t -> float t -> float t
+
 
     val ( = ) : 'a t -> 'a t -> bool t
     val ( <> ) : 'a t -> 'a t -> bool t
@@ -205,6 +253,10 @@ module Sqlite3 : sig
     val ( || ) : bool t -> bool t -> bool t
     val not : bool t -> bool t
     val exists: ('a, [> `SELECT | `SELECT_CORE ]) query -> bool t
+    val in_ : 'a t -> ('a * unit, [> `SELECT | `SELECT_CORE]) query -> bool t
+
+    val between : lower:'a t -> upper:'a t -> 'a t -> bool t
+    val not_between : lower:'a t -> upper:'a t -> 'a t -> bool t
 
     (** {1 Functions} *)
 
@@ -212,17 +264,33 @@ module Sqlite3 : sig
 
     val count_star : int t
 
+    val abs : int t -> int t
+
     val max : ?distinct:bool -> int t -> int t
 
     val min : ?distinct:bool -> int t -> int t
 
     val sum : ?distinct:bool -> int t -> int t
 
+    val absf : float t -> float t
+
+    val maxf : ?distinct:bool -> float t -> float t
+
+    val minf : ?distinct:bool -> float t -> float t
+
+    val sumf : ?distinct:bool -> float t -> float t
+
+    val abs_gen : 'a Type.Numeric.t -> 'a t -> 'a t
+
+    val max_gen : ?distinct:bool -> 'a Type.Numeric.t -> 'a t -> 'a t
+
+    val min_gen : ?distinct:bool -> 'a Type.Numeric.t -> 'a t -> 'a t
+
+    val sum_gen : ?distinct:bool -> 'a Type.Numeric.t -> 'a t -> 'a t
+
     val total : ?distinct:bool -> int t -> int t
 
     val group_concat: ?distinct:bool -> ?sep_by:string t -> string t -> string t
-
-    val abs : int t -> int t
 
     val changes : int t
 
@@ -235,6 +303,14 @@ module Sqlite3 : sig
     val max_of : int t list -> int t
 
     val min_of : int t list -> int t
+
+    val maxf_of : float t list -> float t
+
+    val minf_of : float t list -> float t
+
+    val max_gen_of : 'a Type.Numeric.t -> 'a t list -> 'a t
+
+    val min_gen_of : 'a Type.Numeric.t -> 'a t list -> 'a t
 
     val random : int t
 
@@ -259,28 +335,419 @@ module Sqlite3 : sig
         change frequently and instead use the non-static constant
         functions. *)
 
-    type ('res, 'multiplicity) t
+    type ('res, 'multiplicity) t = ('res, 'multiplicity) request
     (** Represents a compiled SQL database request.  *)
 
-    val make_zero : (unit, 'b) Query.t -> (unit, [ `Zero ]) t
+    val make_zero : (unit, 'b) query -> (unit, [ `Zero ]) t
     (** [make_zero query] constructs a SQL request with multiplicity
         zero from the query [query].  *)
 
-    val make_one : ('a, 'b) Query.t -> ('a, [ `One ]) t
+    val make_one : ('a, 'b) query -> ('a, [ `One ]) t
     (** [make_one query] constructs a SQL request with multiplicity
         one from the query [query].  *)
 
-    val make_zero_or_one : ('a, 'b) Query.t -> ('a, [ `One | `Zero ]) t
+    val make_zero_or_one : ('a, 'b) query -> ('a, [ `One | `Zero ]) t
     (** [make_one query] constructs a SQL request with multiplicity
         zero or one from the query [query].  *)
 
-    val make_many : ('a, 'b) Query.t -> ('a, [ `Many | `One | `Zero ]) t
+    val make_many : ('a, 'b) query -> ('a, [ `Many | `One | `Zero ]) t
     (** [make_one query] constructs a SQL request with multiplicity
         zero or more from the query [query].  *)
 
   end
 
 end
+
+
+module Postgres : sig
+
+  module Type : sig
+
+    (** Defines all supported Postgres types. *)
+
+    type 'a t = 'a Type.t
+    (** Represents a SQL type. *)
+
+    val bool : bool t
+    (** [bool] represents the SQL boolean type (or INTEGER if BOOL does not exist). *)
+
+    val int : int t
+    (** [int] represents the SQL INTEGER type.  *)
+
+    val real : float t
+    (** [real] represents the SQL REAL type.  *)
+
+    val text : string t
+    (** [text] represents the SQL TEXT type.  *)
+
+    val big_int : int64 Type.t
+    (** [big_int] represents the SQL BIGINT type.  *)
+
+    val big_serial : int64 Type.t
+    (** [big_serial] represents the SQL BIGSERIAL type. *)
+
+    val bytea : string Type.t
+    (** [bytea] represents the SQL BYTEA type. *)
+
+    val character : int -> string Type.t
+    (** [character n] represents the SQL CHARACTER(n) type.  *)
+
+    val character_varying : int -> string Type.t
+    (** [character_varying n] represents the SQL CHARACTER VARYING(n) type.  *)
+
+    val date : Ptime.t Type.t
+    (** [date] represents the SQL DATE type.  *)
+
+    val double_precision : float Type.t
+    (** [double_precision] represents the SQL double_precision type. *)
+
+    val int4 : int32 Type.t
+    (** [int4] represents the SQL INT4 type. *)
+
+    val smallint : int Type.t
+    (** [smallint] represents the SQL SMALLINT type.  *)
+
+    val smallserial : int Type.t
+    (** [smallserial] represents the SQL SMALLSERIAL type. *)
+
+    val time : Ptime.t Type.t
+    (** [time] represents the SQL time type. *)
+
+    module Numeric = Type.Numeric
+
+  end 
+
+
+  module Expr : sig
+
+    (** Provides an SQL E-DSL for writing well-typed SQL expressions. *)
+
+    type 'a t = 'a Expr.t
+    (** ['a t] represents an SQL expression that produces a value
+        corresponding to the type ['a].  *)
+
+    (** Represents a heterogeneous sequence of SQL expressions.
+
+        {b Note} Provided you have opened the Expr module, you can use
+        List syntax to construct such lists:
+
+        {[
+          open Petrol.Sqlite3
+              Expr.[i 1; bl false]
+          (* - : (int * (bool * ())) Expr.expr_list *)
+        ]}
+    *)
+    type 'a expr_list = 'a Expr.expr_list =
+      | [] : unit expr_list
+      | (::) : ('a t * 'b expr_list) -> ('a * 'b) expr_list
+
+    type wrapped_assign = Expr.wrapped_assign
+    (** An opaque wrapper that represents an assignment of a value to a
+        particular field in a table.  *)
+
+    (** {1 Constants}*)
+
+    (** The following functions define constant value expressions.
+
+        {b Note} For each type, there are two flavours of constant
+        expression: variable and static.
+
+        The key difference between the two is in terms of how they are
+        represented in the final SQL query - in particular, variable
+        constant expressions are encoded as holes (?) in the query, to
+        which a constant value is supplied, whereas static constant
+        expressions are encoded directly in the query string.
+
+        As Petrol functions cache the construction of SQL queries by
+        their final string representation, you should prefer the dynamic
+        form if you expect the constant value to change frequently - for
+        example, if it is a constant value that you are receiving from
+        elsewhere. Use the static form if you know that the value
+        doesn't change and will always be the same.  *)
+
+    val i : int -> int t
+    (** [i v] returns an expression that evaluates to the integer value
+        [v].  *)
+
+    val f : float -> float t
+    (** [f v] returns an expression that evaluates to the real value
+        [v].  *)
+
+    val s : string -> string t
+    (** [s v] returns an expression that evaluates to the string value
+        [v].  *)
+
+    val bl : bool -> bool t
+    (** [bl v] returns an expression that evaluates to the bool value
+        [v].  *)
+
+    val i_stat : int -> int t
+    (** [i_stat v] returns a static expression that evaluates to the
+        integer value [v].  *)
+
+    val f_stat : float -> float t
+    (** [f_stat v] returns a static expression that evaluates to the
+        real value [v].  *)
+
+    val s_stat : string -> string t
+    (** [s_stat v] returns a static expression that evaluates to the
+        string value [v].  *)
+
+    val true_ : bool t
+    (** [true_] represents the SQL constant [TRUE].  *)
+
+    val false_ : bool t
+    (** [false_] represents the SQL constant [FALSE].  *)
+
+    (** {1 Book-keeping: Types, Naming, Nulls}*)
+
+    val as_ : 'a t -> name:string -> 'a t * 'a t
+    (** [as_ exp ~name] returns a tuple [(exp',exp'_ref)] where [exp']
+        is the SQL expression [exp AS name] that names [exp] as [name],
+        and [exp'_ref] is simply [name]. *)
+
+    val nullable: 'a t -> 'a option t
+    (** [nullable e] encodes the fact that the expression [e] may return [NULL].  *)
+
+    val is_not_null : 'a t -> bool t
+    (** [is_not_null e] constructs an SQL expression that is [TRUE] iff
+        the expression [e] is not [NULL] and [FALSE] otherwise.  *)
+
+    val is_null : 'a t -> bool t
+    (** [is_null e] constructs an SQL expression that is [TRUE] iff
+        the expression [e] is [NULL] and [FALSE] otherwise.  *)
+
+    val coerce : 'a t -> 'b Type.t -> 'b t
+    (** [coerce expr ty] coerces expression [expr] to the type
+        [ty]. This coercion is not checked, so make sure you know what
+        you're doing or it could fail at runtime.  *)
+
+    val (:=) : 'a t -> 'a t -> wrapped_assign
+    (** [v := expr] returns an SQL expression that can be used with an
+        update or insert clause to change the values in the database. *)
+
+    val unset : 'a t -> wrapped_assign
+    (** [unset v] returns an SQL expression that can be used with an
+        update query to set a field to NULL in the database. *)
+
+    (** {1 Operators} *)
+
+    val ( + ) : int t -> int t -> int t
+    val ( - ) : int t -> int t -> int t
+    val ( * ) : int t -> int t -> int t
+    val ( / ) : int t -> int t -> int t
+
+    val ( +. ) : float t -> float t -> float t
+    val ( -. ) : float t -> float t -> float t
+    val ( *. ) : float t -> float t -> float t
+    val ( /. ) : float t -> float t -> float t
+
+
+    val ( = ) : 'a t -> 'a t -> bool t
+    val ( <> ) : 'a t -> 'a t -> bool t
+    val ( <= ) : 'a t -> 'a t -> bool t
+    val ( < ) : 'a t -> 'a t -> bool t
+    val ( > ) : 'a t -> 'a t -> bool t
+    val ( >= ) : 'a t -> 'a t -> bool t
+    val ( && ) : bool t -> bool t -> bool t
+    val ( || ) : bool t -> bool t -> bool t
+    val not : bool t -> bool t
+    val exists: ('a, [> `SELECT | `SELECT_CORE ]) query -> bool t
+    val in_ : 'a t -> ('a * unit, [> `SELECT | `SELECT_CORE]) query -> bool t
+
+    val between : lower:'a t -> upper:'a t -> 'a t -> bool t
+    val not_between : lower:'a t -> upper:'a t -> 'a t -> bool t
+
+    val between_symmetric : lower:'a t -> upper:'a t -> 'a t -> bool t
+    val not_between_symmetric : lower:'a t -> upper:'a t -> 'a t -> bool t
+
+    val is_distinct_from : 'a t -> 'a t -> bool t
+    val is_not_distinct_from : 'a t -> 'a t -> bool t
+
+    val is_true : bool t -> bool t
+    val is_not_true : bool t -> bool t
+    val is_false : bool t -> bool t
+    val is_not_false : bool t -> bool t
+    val is_unknown : bool t -> bool t
+    val is_not_unknown : bool t -> bool t
+
+    (** {1 Arithmetic Functions} *)
+
+    val ceil : float t -> float t
+    val floor : float t -> float t
+    val round : float t -> float t
+    val trunc : float t -> float t
+
+    val ceili : int t -> int t
+    val floori : int t -> int t
+    val roundi : int t -> int t
+    val trunci : int t -> int t
+
+    val ceil_gen : ty:'a Type.Numeric.t -> 'a t -> 'a t
+    val floor_gen : ty:'a Type.Numeric.t -> 'a t -> 'a t
+    val round_gen : ty:'a Type.Numeric.t -> 'a t -> 'a t
+    val trunc_gen : ty:'a Type.Numeric.t -> 'a t -> 'a t
+
+    val pi : float t
+    val sqrt : float t -> float t
+    val degrees : float t -> float t
+    val radians : float t -> float t
+    val exp : float t -> float t
+    val ln : float t -> float t
+    val log10 : float t -> float t
+    val log : base:float t -> float t -> float t
+
+    val power : float t -> float t -> float t
+    val poweri : int t -> int t -> int t
+    val power_gen : ty:'a Type.Numeric.t -> 'a t -> 'a t -> 'a t
+
+    val cos : float t -> float t
+    val cosd : float t -> float t
+    val acos : float t -> float t
+    val acosd : float t -> float t
+    val cosh : float t -> float t
+    val acosh : float t -> float t
+
+    val sin : float t -> float t
+    val sind : float t -> float t
+    val asin : float t -> float t
+    val asind : float t -> float t
+    val sinh : float t -> float t
+    val asinh : float t -> float t
+
+    val tan : float t -> float t
+    val tand : float t -> float t
+    val atan : float t -> float t
+    val atand : float t -> float t
+    val atan2 : float t -> float t
+    val atan2d : float t -> float t
+    val tanh : float t -> float t
+    val atanh : float t -> float t
+
+    val cot : float t -> float t
+    val cotd : float t -> float t
+
+    val factorial : int t -> int t
+    val factorial_gen : ty:'a Type.Numeric.integral -> 'a t -> 'a t
+
+    val gcd : int t -> int t -> int t
+    val gcd_gen : ty:'a Type.Numeric.integral -> 'a t -> 'a t -> 'a t
+
+    val lcm : int t -> int t -> int t
+    val lcm_gen : ty:'a Type.Numeric.integral -> 'a t -> 'a t -> 'a t
+
+    val abs : int t -> int t
+    val absf : float t -> float t
+    val abs_gen : 'a Type.Numeric.t -> 'a t -> 'a t
+
+    (** {1 String functiosn}*)
+
+    val concat : string t list -> string t
+
+    val concat_ws : sep_by:string t -> string t list -> string t
+
+    val like : string t -> pat:string t -> bool t
+
+    val lower : string t -> string t
+
+    val upper : string t -> string t
+
+    val char_length : string t -> int t
+
+    val length : string t -> int t
+
+    val substring : ?from:int t -> ?for_:int t -> string t -> string t
+
+    val replace : from:string t -> to_:string t -> string t -> string t
+
+    val reverse : string t -> string t
+
+    val starts_with : prefix:string t -> string t -> bool t
+
+    val similar_to : pat:string t -> string t -> bool t
+
+    (** {1 Aggregate Functions} *)
+
+    val count : ?distinct:bool -> 'a expr_list -> int t
+
+    val count_star : int t
+
+    val coalesce : 'a t list -> 'a t
+
+    val max : ?distinct:bool -> int t -> int t
+    val maxf : ?distinct:bool -> float t -> float t
+    val max_gen : ?distinct:bool -> 'a Type.Numeric.t -> 'a t -> 'a t
+
+    val min : ?distinct:bool -> int t -> int t
+    val minf : ?distinct:bool -> float t -> float t
+    val min_gen : ?distinct:bool -> 'a Type.Numeric.t -> 'a t -> 'a t
+
+    val sum : ?distinct:bool -> int t -> int t
+    val sumf : ?distinct:bool -> float t -> float t
+    val sum_gen : ?distinct:bool -> 'a Type.Numeric.t -> 'a t -> 'a t
+
+    val greatest : int t list -> int t
+    val greatestf : float t list -> float t
+    val greatest_gen : ty:'a Type.Numeric.t -> 'a t list -> 'a t
+
+    val least : int t list -> int t
+    val leastf : float t list -> float t
+    val least_gen : ty:'a Type.Numeric.t -> 'a t list -> 'a t
+
+    (* val max_of : int t list -> int t *)
+
+    (* val min_of : int t list -> int t *)
+
+    (* val maxf_of : float t list -> float t *)
+
+    (* val minf_of : float t list -> float t *)
+
+    (* val max_gen_of : 'a Type.Numeric.t -> 'a t list -> 'a t *)
+
+    (* val min_gen_of : 'a Type.Numeric.t -> 'a t list -> 'a t *)
+
+    val random : float t
+
+  end
+
+
+  module Request : sig
+
+    (** This module defines a request type [t] that can be executed by
+        Caqti (see {!exec}, {!find}, {!find_opt}). The functions defined
+        in this module cache their inputs, so it is safe to call these
+        repeatedly.
+
+        {b Note} In order to cache a query, Petrol uses the string
+        representation of the query with holes for variables as the
+        cache key -- this means that you are highly recommended to {i
+        not} use the static constant functions for any values that
+        change frequently and instead use the non-static constant
+        functions. *)
+
+    type ('res, 'multiplicity) t = ('res, 'multiplicity) request
+    (** Represents a compiled SQL database request.  *)
+
+    val make_zero : (unit, 'b) query -> (unit, [ `Zero ]) t
+    (** [make_zero query] constructs a SQL request with multiplicity
+        zero from the query [query].  *)
+
+    val make_one : ('a, 'b) query -> ('a, [ `One ]) t
+    (** [make_one query] constructs a SQL request with multiplicity
+        one from the query [query].  *)
+
+    val make_zero_or_one : ('a, 'b) query -> ('a, [ `One | `Zero ]) t
+    (** [make_one query] constructs a SQL request with multiplicity
+        zero or one from the query [query].  *)
+
+    val make_many : ('a, 'b) query -> ('a, [ `Many | `One | `Zero ]) t
+    (** [make_one query] constructs a SQL request with multiplicity
+        zero or more from the query [query].  *)
+
+  end
+
+end
+
 
 module Schema : sig
 
@@ -586,14 +1053,21 @@ module VersionedSchema : sig
   (** Represents SQL statements required to update the schema over
       versions. *)
 
+  module type DIALECT
+
+  module Dialects : sig
+    module Postgres : DIALECT
+    module Sqlite3 : DIALECT
+  end
+
   val version: int list -> version
   (** [version ls] constructs a new version number from [ls]. *)
 
   val init:
-    ?migrations:(version * migration list) list -> version -> name:string -> t
-  (** [init ?migrations version ~name] constructs a new versioned
-      schema declaring it to have the name [name] and version
-      [version].
+    ?migrations:(version * migration list) list -> (module DIALECT) -> version -> name:string -> t
+  (** [init ?migrations dialect version ~name] constructs a new
+      versioned schema declaring it to have the name [name] and
+      version [version] using SQL dialect [dialect].
 
       [name] is the name of the schema -- used to initially
       determine the stored version number, and is required to stay
@@ -603,10 +1077,28 @@ module VersionedSchema : sig
       {!initialise} will fail if it is run using an SQL database has a
       newer version than the version declared here.
 
+      [dialect] is one of the currently supported SQL dialects of
+      Petrol -- see {!VersionedSchema.Dialects}.
+
       [migrations] is an association list, mapping versions to the SQL
       statements required to migrate the schema to the new format
       from its previous version. The order of elements in [migrations]
       is irrelevant. *)
+
+  val init_sqlite3: ?migrations:(version * migration list) list -> version -> name:string -> t
+  (** [init_sqlite3 ?migrations version ~name] constructs a new
+      versioned schema, using the SQLITE3 dialect.
+
+      See {!init} for details on the parameters
+  *)
+
+  val init_postgres: ?migrations:(version * migration list) list -> version -> name:string -> t
+  (** [init_postgres ?migrations version ~name] constructs a new
+      versioned schema using the Postgres dialect.
+
+      See {!init} for details on the parameters
+  *)
+
 
   val declare_table : t ->
     ?since:version ->
@@ -654,25 +1146,25 @@ module VersionedSchema : sig
 
 end
 
-val exec : (module Caqti_lwt.CONNECTION) -> (unit, [< `Zero ]) Request.t ->
+val exec : (module Caqti_lwt.CONNECTION) -> (unit, [< `Zero ]) request ->
   (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 (** [exec db req] executes a unit SQL request [req] on the SQL
     database [db].  *)
 
-val find : (module Caqti_lwt.CONNECTION) -> ('a, [< `One ]) Request.t ->
+val find : (module Caqti_lwt.CONNECTION) -> ('a, [< `One ]) request ->
   ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 (** [find db req] executes a singleton SQL request [req] on the SQL
     database [db] returning the result.  *)
 
 val find_opt : (module Caqti_lwt.CONNECTION) ->
-  ('a, [< `One | `Zero ]) Request.t ->
+  ('a, [< `One | `Zero ]) request ->
   ('a option, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 (** [find_opt db req] executes a zero-or-one SQL request [req] on the SQL
     database [db] returning the result if it exists.  *)
 
 val collect_list :
   (module Caqti_lwt.CONNECTION) ->
-  ('a, [< `Many | `One | `Zero ]) Request.t ->
+  ('a, [< `Many | `One | `Zero ]) request ->
   ('a list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
 (** [collect_list db req] executes a SQL request [req] on the SQL
     database [db] and collects the results into a list.  *)

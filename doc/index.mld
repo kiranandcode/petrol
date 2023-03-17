@@ -1,14 +1,16 @@
 {0:top Petrol}
 
 Petrol is a Free software library that provides a high-level OCaml API
-for interacting with SQL databases. The aim of this interface is to
-provide a type-safe API to allow developers to define their SQL tables
-and queries directly in OCaml, thereby avoiding the impedence mismatch
-and fragility that comes with having to directly write SQL code, as is
-typical in a normal Caqti-based project.
+for interacting with SQL databases (currently Sqlite3 and Postgres are
+supported). The aim of this interface is to provide a type-safe API to
+allow developers to define their SQL tables and queries directly in
+OCaml, thereby avoiding the impedence mismatch and fragility that
+comes with having to directly write SQL code, as is typical in a
+normal Caqti-based project.
 
 {[
 open Petrol
+open Petrol.Sqlite3 (* or Petrol.Postgres  *)
 
 (* define a new schema *)
 let schema = StaticSchema.init ()
@@ -93,6 +95,7 @@ combinators:
 
 {[
 open Petrol
+open Petrol.Sqlite3
 
 (* define an query to insert new rows *)
 let insert_text ~text:txt db =
@@ -113,8 +116,8 @@ let collect_all db =
     ))
 ]}
 
-Note that the {{!Petrol.Request}[Request.make_*]} functions cache
-their results, so it's safe and efficient to call them directly.
+Note that the {{!Petrol.Sqlite3.Request}[Request.make_*]} functions cache their
+results, so it's safe and efficient to call them directly.
 
 {3:initialisation 3. Initialise the schema at startup}
 
