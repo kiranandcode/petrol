@@ -76,6 +76,7 @@ Once you have a schema defined, you can add tables using the
 
 {[
 open Petrol
+open Petrol.Sqlite3
 
 (* declare a table, returning the table name and fields *)
 let my_table, Expr.[id_field; text_field] =
@@ -153,7 +154,7 @@ open Petrol
 let version = VersionedSchema.version [1;0;0]
 
 (* define a schema *)
-let schema = VersionedSchema.init version ~name:"my_application"
+let schema = VersionedSchema.init_sqlite3 version ~name:"my_application"
 ]}
 
 Version numbers are ordered lexiographically (i.e [version [2] > version [1;0;0]]).
@@ -166,6 +167,7 @@ you to also pass in an optional [~migrations] argument.
 
 {[
 open Petrol
+open Petrol.Sqlite3
 
 (* declare a table with a migration for a new [age] column in version 1.2.0 *)
 let t, Expr.[id;age;url] =
