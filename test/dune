@@ -1,8 +1,11 @@
-(executables (names test_static_person test_versioned_bookmark)
+(executables (names test_static_person test_versioned_bookmark test_postgres_static test_postgres_versioned)
   (modules (:standard \ "test_utils"))
- (libraries test_utils petrol caqti caqti-lwt caqti-driver-sqlite3))
+ (enabled_if (= %{profile} test))
+ (libraries test_utils petrol caqti caqti-lwt caqti-driver-sqlite3 caqti-driver-postgresql))
 
 (library (name test_utils)
  (modules "test_utils")
- (libraries petrol caqti caqti-lwt caqti-driver-sqlite3))
+ (enabled_if (= %{profile} test))
+ (libraries petrol caqti caqti-lwt caqti-driver-sqlite3 caqti-driver-postgresql))
+
 

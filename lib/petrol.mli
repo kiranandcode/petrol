@@ -835,8 +835,8 @@ module Schema : sig
       [on_conflict] specifies how to handle conflicts.
 
       [auto_increment] specifies whether the primary key should be
-      automatically generated.
-  *)
+      automatically generated. (Note: not supported for Postgres
+      databases.)  *)
 
   val table_primary_key :
     ?name:string ->

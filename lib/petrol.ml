@@ -307,12 +307,13 @@ module VersionedSchema = struct
       (* collect queries *)
       let table_defs =
         Hashtbl.fold
-          (fun _key (MkTable (_, name,_,  _, table, constraints)) acc ->
-             List.cons (Schema.to_sql ~name table constraints) acc
-          ) t.tables ([]: 'a list) in
+          (fun key (MkTable (_, name,_,  _, table, constraints)) acc ->
+             List.cons (key, Schema.to_sql ~name table constraints) acc
+          ) t.tables ([]: 'a list)
+        |> List.sort (fun (k1, _) (k2,_) -> Int.compare k1 k2) in
       (* execute them *)
       let* () = 
-        Lwt_list.map_s (fun table_def ->
+        Lwt_list.map_s (fun (_, table_def) ->
           let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
           DB.exec req ()
         ) table_defs
@@ -325,9 +326,11 @@ module VersionedSchema = struct
           find_migrations_to_run ~current_version t.migrations in
         (* first, create any tables that aren't present yet *)
         let* () =
-          Hashtbl.to_seq_values t.tables
-          |> Lwt_seq.of_seq
-          |> Lwt_seq.map_s (fun (MkTable (_, name, since, _, table, constraints)) ->
+          Hashtbl.to_seq t.tables
+          |> List.of_seq
+          |> List.sort (fun (k1, _) (k2, _) -> Int.compare k1 k2)
+          |> Lwt_seq.of_list
+          |> Lwt_seq.map_s (fun (_, MkTable (_, name, since, _, table, constraints)) ->
             match since with
             | Some since when compare_version current_version since < 0 ->
               let table_def = Schema.to_sql ~name table constraints in
@@ -351,9 +354,11 @@ module VersionedSchema = struct
           |> Lwt.map result_all_unit in
         (* then, for each table *)
         let* () = 
-          Hashtbl.to_seq_values t.tables
-          |> Lwt_seq.of_seq
-          |> Lwt_seq.map_s (fun (MkTable (_, _, since, migrations, _, _)) ->
+          Hashtbl.to_seq t.tables
+          |> List.of_seq
+          |> List.sort (fun (k1, _) (k2, _) -> Int.compare k1 k2)
+          |> Lwt_seq.of_list
+          |> Lwt_seq.map_s (fun (_, MkTable (_, _, since, migrations, _, _)) ->
             match since with
             | Some since when compare_version current_version since < 0 ->
               Lwt.return_ok ()

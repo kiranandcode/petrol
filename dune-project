@@ -24,7 +24,7 @@
   (lwt (>= 5.5))
   (caqti (>= 1.8.0))
   (caqti-lwt (>= 1.8.0))
-  (caqti-driver-sqlite3 (>= 1.8.0))
+  (caqti-driver-sqlite3 (and :with-test (>= 1.8.0)))
  )
  (tags
   (sql)))

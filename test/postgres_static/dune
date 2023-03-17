@@ -1,0 +1,2 @@
+(cram (deps ../test_postgres_static.exe)
+ (enabled_if (= %{profile} test)))
