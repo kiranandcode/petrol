@@ -9,6 +9,7 @@ typical in a normal Caqti-based project.
 
 ```ocaml
 open Petrol
+open Petrol.Sqlite3
 
 (* define a new schema *)
 let schema = StaticSchema.init ()
@@ -26,6 +27,8 @@ Petrol's DSL allows you to express complex SQL queries as simple OCaml
 function compositions:
 
 ```ocaml
+open Petrol.Sqlite3
+
 (* create a query *)
 let insert_person ~name:n ~age:a db =
     Query.insert ~table:example_table
