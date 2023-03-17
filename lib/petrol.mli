@@ -44,7 +44,17 @@ module Type : sig
 
   val custom : ty:'a Caqti_type.t -> repr:string -> 'a t
   (** [custom ~ty ~repr] creates a new SQL type that is represented by
-      the Caqti type [ty], and  *)
+      the Caqti type [ty], and is represented in a SQL query as [repr].
+
+      For example, you might define the BOOL datatype as follows:
+      {[
+        let bool = Type.custom ~ty:Caqti_type.bool ~repr:"BOOLEAN"
+      ]}
+
+      {b Note} Petrol doesn't implement the boolean type using this
+      function, and uses a slightly more efficient internal encoding,
+      but for more bespoke custom user types this function should be
+      sufficient. *)
 
   val pp_value : 'a t -> Format.formatter -> 'a -> unit
   (** [pp_value ty fmt vl] returns a pretty printer for values of a type [ty]. *)
@@ -83,6 +93,18 @@ type ('res, 'multiplicity) request
 
 module Sqlite3 : sig
 
+  (** Defines {!Petrol}'s e-DSL for Sqlite3 SQL.
+
+      {b Note} Typically you should open this module at the start of the file.
+
+      {[
+        open Petrol
+        open Petrol.Sqlite3
+            Expr.[i 1; bl false]
+        (* - : (int * (bool * ())) Expr.expr_list *)
+      ]} *)
+
+
   module Type : sig
 
     (** Defines all supported Sqlite types. *)
@@ -91,7 +113,7 @@ module Sqlite3 : sig
     (** Represents a SQL type. *)
 
     val bool : bool t
-    (** [bool] represents the SQL boolean type (or INTEGER if BOOL does not exist). *)
+    (** [bool] represents the SQL boolean type (internally the type is INTEGER, as Sqlite does not have a dedicated boolean type). *)
 
     val int : int t
     (** [int] represents the SQL INTEGER type.  *)
@@ -125,7 +147,7 @@ module Sqlite3 : sig
 
         {[
           open Petrol.Sqlite3
-          Expr.[i 1; bl false]
+              Expr.[i 1; bl false]
           (* - : (int * (bool * ())) Expr.expr_list *)
         ]}
     *)
@@ -361,6 +383,17 @@ end
 
 module Postgres : sig
 
+  (** Defines {!Petrol}'s e-DSL for Postgres SQL.
+
+      {b Note} Typically you should open this module at the start of the file.
+
+      {[
+        open Petrol
+        open Petrol.Postgres
+            Expr.[i 1; bl false]
+        (* - : (int * (bool * ())) Expr.expr_list *)
+      ]} *)
+
   module Type : sig
 
     (** Defines all supported Postgres types. *)
@@ -369,7 +402,7 @@ module Postgres : sig
     (** Represents a SQL type. *)
 
     val bool : bool t
-    (** [bool] represents the SQL boolean type (or INTEGER if BOOL does not exist). *)
+    (** [bool] represents the SQL boolean type. *)
 
     val int : int t
     (** [int] represents the SQL INTEGER type.  *)
