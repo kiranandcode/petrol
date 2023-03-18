@@ -416,7 +416,7 @@ module Common = struct
           | GE -> ">="
           | LT -> "<"
           | LE -> "<=" in
-        Format.fprintf fmt "(%a) %s (%a)"
+        Format.fprintf fmt "%a %s %a"
           pp_expr l op pp_expr r
 
       | IS_NOT_NULL e -> Format.fprintf fmt "%a IS NOT NULL" pp_expr e

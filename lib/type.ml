@@ -62,7 +62,7 @@ module Postgres = struct
                               | BIGSERIAL -> Some Refl
                               | _ -> None}}
   type 'a witness += BYTEA : string witness
-  let bytea  = CUSTOM { ty = Caqti_type.string; repr = "BYTEA"; witness=BYTEA;
+  let bytea  = CUSTOM { ty = Caqti_type.octets; repr = "BYTEA"; witness=BYTEA;
                         eq_witness={eq=fun (type b) (witness: b witness) : (string, b) eq option ->
                           match witness with
                           | BYTEA -> Some Refl
