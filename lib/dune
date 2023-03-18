@@ -1,4 +1,4 @@
 (library
  (name petrol)
  (public_name petrol)
- (libraries caqti caqti-lwt caqti-driver-sqlite3))
+ (libraries caqti caqti-lwt))
