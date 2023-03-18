@@ -256,18 +256,25 @@ and pp_query: 'a 'b. Format.formatter ->
        set
        (pp_opt pp_on_conflict) on_conflict
   )
-and pp_join : Format.formatter -> join -> unit =
-  fun fmt (MkJoin { table; on; join_op }) ->
-  Format.fprintf fmt "%a (%a) ON %a"
+and pp_join : int -> Format.formatter -> join -> unit =
+  fun n fmt (MkJoin { table; on; join_op }) ->
+  Format.fprintf fmt "%a (%a) AS join_tmp_%d ON %a"
     pp_join_op join_op
-    pp_query table
+    pp_query table n
     pp_expr on
 and pp_join_list : Format.formatter -> join list -> unit =
   fun fmt ls ->
   match ls with
   | [] -> ()
   | h :: t ->
-    Format.fprintf fmt " %a%a" pp_join h pp_join_list t
+    Format.fprintf fmt " %a%a" (pp_join 0) h (pp_join_list_inner 1) t
+and pp_join_list_inner : int -> Format.formatter -> join list -> unit =
+  fun n fmt ls ->
+  match ls with
+  | [] -> ()
+  | h :: t ->
+    Format.fprintf fmt " %a%a" (pp_join n) h (pp_join_list_inner (n + 1)) t
+
 and pp_wrapped_assign: Format.formatter -> wrapped_assign -> unit =
   fun fmt (ASSIGN ((_, field_name, _), expr)) ->
   Format.fprintf fmt "%s = %a" field_name pp_expr expr
