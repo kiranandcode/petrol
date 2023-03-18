@@ -210,7 +210,7 @@ let rec pp_value : 'a . 'a t -> Format.formatter -> 'a -> unit =  fun (type a) (
   | INTEGER -> Format.fprintf fmt "%d" vl
   | REAL -> Format.fprintf fmt "%f" vl
   | BOOLEAN -> Format.fprintf fmt "%b" vl
-  | TEXT -> Format.fprintf fmt "%s" (Caqti_sql.sql_escaped vl)[@alert "-deprecated"]
+  | TEXT -> Format.fprintf fmt "%s" (Caqti_sql.sql_quoted vl)[@alert "-deprecated"]
   | CUSTOM {ty;_} -> Caqti_type.pp_value fmt (ty,vl)
   | NULLABLE ty ->
     match vl with
