@@ -494,6 +494,48 @@ module Common = struct
   let () = add_typer @@ fun typer -> {
     ty_expr=fun (type a) (e: a expr) : a Type.t ->
       match e with
+      | CAST (_, ty) -> ty
+      | BETWEEN _ -> Type.bool
+      | NOT_BETWEEN _ -> Type.bool
+      | COUNT _ -> Type.int 
+      | COUNT_STAR -> Type.int
+      | MAX (_, _, expr) -> ty_expr expr
+      | MIN (_, _, expr) -> ty_expr expr
+      | SUM (_, _, expr) -> ty_expr expr
+
+      | ADD (_, l, _) -> ty_expr l
+      | SUB (_, l, _) -> ty_expr l
+      | MUL (_, l, _) -> ty_expr l
+      | DIV (_, l, _) -> ty_expr l
+      | ABS (_, l) -> ty_expr l
+
+      | MOD (_, l, _) -> ty_expr l
+      | LAND (_, l, _) -> ty_expr l
+      | LOR (_, l, _) -> ty_expr l
+
+      | AND _ -> Type.bool
+      | OR _ -> Type.bool
+      | NOT _ -> Type.bool
+
+      | COMPARE _ -> Type.bool
+
+      | IS_NOT_NULL _ -> Type.bool
+      | IS_NULL _ -> Type.bool
+  
+      | LOWER expr -> ty_expr expr
+      | UPPER expr -> ty_expr expr
+
+      | LIKE _ -> Type.bool
+
+      | COALESCE (h :: _) -> ty_expr h
+      | COALESCE [] -> failwith "could not infer type of empty coalesce"
+
+      | NULLABLE expr -> Type.NULLABLE (ty_expr expr)
+
+      | EXISTS _ -> Type.bool
+
+      | IN _ -> Type.bool
+
       | _ -> typer.ty_expr e
   }
 
