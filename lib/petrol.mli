@@ -90,8 +90,45 @@ type ('ret_ty, 'query_kind) query
 type ('res, 'multiplicity) request
 (** Represents a compiled SQL database request.  *)
 
+module Request : sig
+
+  (** This module defines a request type [t] that can be executed by
+      Caqti (see {!exec}, {!find}, {!find_opt}). The functions defined
+      in this module cache their inputs, so it is safe to call these
+      repeatedly.
+
+      {b Note} In order to cache a query, Petrol uses the string
+      representation of the query with holes for variables as the
+      cache key -- this means that you are highly recommended to {i
+      not} use the static constant functions for any values that
+      change frequently and instead use the non-static constant
+      functions. *)
+
+  type ('res, 'multiplicity) t = ('res, 'multiplicity) request
+  (** Represents a compiled SQL database request.  *)
+
+  val make_zero : (unit, 'b) query -> (unit, [ `Zero ]) t
+  (** [make_zero query] constructs a SQL request with multiplicity
+      zero from the query [query].  *)
+
+  val make_one : ('a, 'b) query -> ('a, [ `One ]) t
+  (** [make_one query] constructs a SQL request with multiplicity
+      one from the query [query].  *)
+
+  val make_zero_or_one : ('a, 'b) query -> ('a, [ `One | `Zero ]) t
+  (** [make_one query] constructs a SQL request with multiplicity
+      zero or one from the query [query].  *)
+
+  val make_many : ('a, 'b) query -> ('a, [ `Many | `One | `Zero ]) t
+  (** [make_one query] constructs a SQL request with multiplicity
+      zero or more from the query [query].  *)
+
+end
+
 
 module Sqlite3 : sig
+
+  module Request = Request
 
   (** Defines {!Petrol}'s e-DSL for Sqlite3 SQL.
 
@@ -342,46 +379,12 @@ module Sqlite3 : sig
 
   end
 
-
-  module Request : sig
-
-    (** This module defines a request type [t] that can be executed by
-        Caqti (see {!exec}, {!find}, {!find_opt}). The functions defined
-        in this module cache their inputs, so it is safe to call these
-        repeatedly.
-
-        {b Note} In order to cache a query, Petrol uses the string
-        representation of the query with holes for variables as the
-        cache key -- this means that you are highly recommended to {i
-        not} use the static constant functions for any values that
-        change frequently and instead use the non-static constant
-        functions. *)
-
-    type ('res, 'multiplicity) t = ('res, 'multiplicity) request
-    (** Represents a compiled SQL database request.  *)
-
-    val make_zero : (unit, 'b) query -> (unit, [ `Zero ]) t
-    (** [make_zero query] constructs a SQL request with multiplicity
-        zero from the query [query].  *)
-
-    val make_one : ('a, 'b) query -> ('a, [ `One ]) t
-    (** [make_one query] constructs a SQL request with multiplicity
-        one from the query [query].  *)
-
-    val make_zero_or_one : ('a, 'b) query -> ('a, [ `One | `Zero ]) t
-    (** [make_one query] constructs a SQL request with multiplicity
-        zero or one from the query [query].  *)
-
-    val make_many : ('a, 'b) query -> ('a, [ `Many | `One | `Zero ]) t
-    (** [make_one query] constructs a SQL request with multiplicity
-        zero or more from the query [query].  *)
-
-  end
-
 end
 
 
 module Postgres : sig
+
+  module Request = Request
 
   (** Defines {!Petrol}'s e-DSL for Postgres SQL.
 
@@ -743,42 +746,6 @@ module Postgres : sig
 
   end
 
-
-  module Request : sig
-
-    (** This module defines a request type [t] that can be executed by
-        Caqti (see {!exec}, {!find}, {!find_opt}). The functions defined
-        in this module cache their inputs, so it is safe to call these
-        repeatedly.
-
-        {b Note} In order to cache a query, Petrol uses the string
-        representation of the query with holes for variables as the
-        cache key -- this means that you are highly recommended to {i
-        not} use the static constant functions for any values that
-        change frequently and instead use the non-static constant
-        functions. *)
-
-    type ('res, 'multiplicity) t = ('res, 'multiplicity) request
-    (** Represents a compiled SQL database request.  *)
-
-    val make_zero : (unit, 'b) query -> (unit, [ `Zero ]) t
-    (** [make_zero query] constructs a SQL request with multiplicity
-        zero from the query [query].  *)
-
-    val make_one : ('a, 'b) query -> ('a, [ `One ]) t
-    (** [make_one query] constructs a SQL request with multiplicity
-        one from the query [query].  *)
-
-    val make_zero_or_one : ('a, 'b) query -> ('a, [ `One | `Zero ]) t
-    (** [make_one query] constructs a SQL request with multiplicity
-        zero or one from the query [query].  *)
-
-    val make_many : ('a, 'b) query -> ('a, [ `Many | `One | `Zero ]) t
-    (** [make_one query] constructs a SQL request with multiplicity
-        zero or more from the query [query].  *)
-
-  end
-
 end
 
 
@@ -1086,18 +1053,11 @@ module VersionedSchema : sig
   (** Represents SQL statements required to update the schema over
       versions. *)
 
-  module type DIALECT
-
-  module Dialects : sig
-    module Postgres : DIALECT
-    module Sqlite3 : DIALECT
-  end
-
   val version: int list -> version
   (** [version ls] constructs a new version number from [ls]. *)
 
   val init:
-    ?migrations:(version * migration list) list -> (module DIALECT) -> version -> name:string -> t
+    ?migrations:(version * migration list) list -> version -> name:string -> t
   (** [init ?migrations dialect version ~name] constructs a new
       versioned schema declaring it to have the name [name] and
       version [version] using SQL dialect [dialect].
@@ -1110,28 +1070,10 @@ module VersionedSchema : sig
       {!initialise} will fail if it is run using an SQL database has a
       newer version than the version declared here.
 
-      [dialect] is one of the currently supported SQL dialects of
-      Petrol -- see {!VersionedSchema.Dialects}.
-
       [migrations] is an association list, mapping versions to the SQL
       statements required to migrate the schema to the new format
       from its previous version. The order of elements in [migrations]
       is irrelevant. *)
-
-  val init_sqlite3: ?migrations:(version * migration list) list -> version -> name:string -> t
-  (** [init_sqlite3 ?migrations version ~name] constructs a new
-      versioned schema, using the SQLITE3 dialect.
-
-      See {!init} for details on the parameters
-  *)
-
-  val init_postgres: ?migrations:(version * migration list) list -> version -> name:string -> t
-  (** [init_postgres ?migrations version ~name] constructs a new
-      versioned schema using the Postgres dialect.
-
-      See {!init} for details on the parameters
-  *)
-
 
   val declare_table : t ->
     ?since:version ->

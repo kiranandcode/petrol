@@ -91,22 +91,22 @@ let values_fn : collector ref = ref { values_expr = fun (type a) _ (expr: a expr
 let values_expr acc expr = (!values_fn).values_expr acc expr
 let add_collector f = let old_f = !values_fn in values_fn := f old_f
 
-type typer = { ty_expr : 'a . bool:bool Type.t -> 'a expr -> 'a Type.t }
-let typer_fn : typer ref = ref { ty_expr = fun (type a) ~bool:_ (expr: a expr) ->
+type typer = { ty_expr : 'a . 'a expr -> 'a Type.t }
+let typer_fn : typer ref = ref { ty_expr = fun (type a) (expr: a expr) ->
   Format.ksprintf failwith "could not resolve typer for expression %s"
     (Obj.Extension_constructor.name
        (Obj.Extension_constructor.of_val expr))
 }
-let ty_expr ~bool expr = (!typer_fn).ty_expr ~bool expr
+let ty_expr expr = (!typer_fn).ty_expr expr
 let add_typer f = let old_f = !typer_fn in typer_fn := f old_f
 
 
-let rec ty_expr_list : 'a . bool:bool Type.t -> 'a expr_list -> 'a Type.ty_list =
-  fun (type a) ~bool (ls: a expr_list) : a Type.ty_list ->
+let rec ty_expr_list : 'a . 'a expr_list -> 'a Type.ty_list =
+  fun (type a) (ls: a expr_list) : a Type.ty_list ->
   match ls with
   | [] -> Nil
   | h :: t ->
-    Cons (ty_expr ~bool h, ty_expr_list ~bool t)
+    Cons (ty_expr h, ty_expr_list t)
 
 
 type 'a expr +=
@@ -147,7 +147,7 @@ let () = add_collector @@ fun collector -> {
 }
 
 let () = add_typer @@ fun typer -> {
-  ty_expr=fun (type a) ~bool (e: a expr) : a Type.t ->
+  ty_expr=fun (type a) (e: a expr) : a Type.t ->
     match e with
     | NULL ty -> ty
     | CONST (_, ty) -> ty
@@ -155,8 +155,8 @@ let () = add_typer @@ fun typer -> {
     | FIELD (_, _, ty) -> ty
     | COERCETO (_, ty) -> ty
     | REF (_, ty) -> ty
-    | AS (expr, _) -> ty_expr ~bool expr
-    | _ -> typer.ty_expr ~bool e
+    | AS (expr, _) -> ty_expr expr
+    | _ -> typer.ty_expr e
 }
 
 let rec pp_expr_list_inner : 'a . Format.formatter -> 'a expr_list -> unit =
@@ -492,9 +492,9 @@ module Common = struct
 
 
   let () = add_typer @@ fun typer -> {
-    ty_expr=fun (type a) ~bool (e: a expr) : a Type.t ->
+    ty_expr=fun (type a) (e: a expr) : a Type.t ->
       match e with
-      | _ -> typer.ty_expr ~bool e
+      | _ -> typer.ty_expr e
   }
 
 end
@@ -797,36 +797,36 @@ module Postgres = struct
   }
 
   let () = add_typer @@ fun typer -> {
-    ty_expr=fun (type a) ~(bool:bool Type.t) (e: a expr) : a Type.t ->
+    ty_expr=fun (type a) (e: a expr) : a Type.t ->
       match e with
-      | BETWEEN_SYMMETRIC (_, _, _) -> bool
-      | NOT_BETWEEN_SYMMETRIC (_, _, _) -> bool
+      | BETWEEN_SYMMETRIC (_, _, _) -> Type.bool
+      | NOT_BETWEEN_SYMMETRIC (_, _, _) -> Type.bool
 
-      | IS_DISTINCT_FROM (_,_) -> bool
-      | IS_NOT_DISTINCT_FROM (_,_) -> bool
+      | IS_DISTINCT_FROM (_,_) -> Type.bool
+      | IS_NOT_DISTINCT_FROM (_,_) -> Type.bool
 
-      | IS_TRUE _ -> bool
-      | IS_NOT_TRUE _ -> bool
+      | IS_TRUE _ -> Type.bool
+      | IS_NOT_TRUE _ -> Type.bool
 
-      | IS_FALSE _ -> bool
-      | IS_NOT_FALSE _ -> bool
+      | IS_FALSE _ -> Type.bool
+      | IS_NOT_FALSE _ -> Type.bool
 
-      | IS_UNKNOWN _ -> bool
-      | IS_NOT_UNKNOWN _ -> bool
+      | IS_UNKNOWN _ -> Type.bool
+      | IS_NOT_UNKNOWN _ -> Type.bool
 
-      | CEIL (_,expr) -> ty_expr ~bool expr
-      | FLOOR (_,expr) -> ty_expr ~bool expr
-      | ROUND (_,expr) -> ty_expr ~bool expr
-      | TRUNC (_,expr) -> ty_expr ~bool expr
+      | CEIL (_,expr) -> ty_expr expr
+      | FLOOR (_,expr) -> ty_expr expr
+      | ROUND (_,expr) -> ty_expr expr
+      | TRUNC (_,expr) -> ty_expr expr
       | PI -> Type.REAL
-      | SQRT expr -> ty_expr ~bool expr
-      | DEGREES expr -> ty_expr ~bool expr
-      | RADIANS expr -> ty_expr ~bool expr
-      | EXP expr -> ty_expr ~bool expr
-      | LN expr -> ty_expr ~bool expr
-      | LOG10 expr -> ty_expr ~bool expr
-      | LOG (base,_) -> ty_expr ~bool base
-      | POWER (_, a,_) -> ty_expr ~bool a
+      | SQRT expr -> ty_expr expr
+      | DEGREES expr -> ty_expr expr
+      | RADIANS expr -> ty_expr expr
+      | EXP expr -> ty_expr expr
+      | LN expr -> ty_expr expr
+      | LOG10 expr -> ty_expr expr
+      | LOG (base,_) -> ty_expr base
+      | POWER (_, a,_) -> ty_expr a
 
 
       | COS _ -> Type.REAL
@@ -856,9 +856,9 @@ module Postgres = struct
       | COT _ -> Type.REAL
       | COTD _ -> Type.REAL
 
-      | FACTORIAL (_, expr) -> ty_expr ~bool expr
-      | GCD (_, l,_) -> ty_expr ~bool l
-      | LCM (_, l,_) -> ty_expr ~bool l
+      | FACTORIAL (_, expr) -> ty_expr expr
+      | GCD (_, l,_) -> ty_expr l
+      | LCM (_, l,_) -> ty_expr l
 
       | CONCAT _ -> Type.TEXT
 
@@ -873,19 +873,19 @@ module Postgres = struct
       | REPLACE (_,_,_) -> Type.TEXT
 
       | REVERSE _ -> Type.TEXT
-      | STARTS_WITH (_,_) -> bool
-      | SIMILAR_TO (_,_) -> bool
+      | STARTS_WITH (_,_) -> Type.bool
+      | SIMILAR_TO (_,_) -> Type.bool
 
 
-      | GREATEST (_, expr :: _) -> ty_expr ~bool expr
-      | LEAST (_,expr :: _) -> ty_expr ~bool expr
+      | GREATEST (_, expr :: _) -> ty_expr expr
+      | LEAST (_,expr :: _) -> ty_expr expr
 
       | GREATEST (_, []) -> failwith "invalid syntax -- empty GREATEST expression"
       | LEAST (_,[]) -> failwith "invalid syntax -- empty LEAST expression"
 
       | RANDOM -> Type.REAL
 
-      | _ -> typer.ty_expr ~bool e
+      | _ -> typer.ty_expr e
   }
 
 end
@@ -968,24 +968,24 @@ module Sqlite3 = struct
   }
 
   let () = add_typer @@ fun typer -> {
-    ty_expr=fun (type a) ~bool (e: a expr) : a Type.t ->
+    ty_expr=fun (type a) (e: a expr) : a Type.t ->
       match e with
-      | TOTAL (_, expr) -> ty_expr ~bool expr
+      | TOTAL (_, expr) -> ty_expr expr
 
       | GROUP_CONCAT (_, _, _) -> Type.TEXT
 
       | CHANGES -> Type.INTEGER
-      | GLOB (_, _) -> bool
+      | GLOB (_, _) -> Type.bool
 
-      | MIN_OF (_, expr :: _) -> ty_expr ~bool expr
-      | MAX_OF (_, expr :: _) -> ty_expr ~bool expr
+      | MIN_OF (_, expr :: _) -> ty_expr expr
+      | MAX_OF (_, expr :: _) -> ty_expr expr
 
       | MIN_OF (_, []) -> failwith "invalid syntax -- empty MIN(..)"
       | MAX_OF (_, []) -> failwith "invalid syntax -- empty MAX(..)"
 
 
       | RANDOM -> Type.INTEGER
-      | _ -> typer.ty_expr ~bool e
+      | _ -> typer.ty_expr e
   }
 
 end

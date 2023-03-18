@@ -61,10 +61,10 @@ let make_zero : 'b . (unit,'b) Query.t -> (unit, [`Zero]) t =
                   (fun _ -> query_repr) in
   MkCaqti (query_value_ty,request), query_values
 
-let make_zero : 'b . bool:bool Type.t -> (unit,'b) Query.t -> (unit, [`Zero]) t =
-  fun (type b) ~bool (query: (unit,b) Query.t) : (unit, [`Zero]) t ->
+let make_zero : 'b . (unit,'b) Query.t -> (unit, [`Zero]) t =
+  fun (type b) (query: (unit,b) Query.t) : (unit, [`Zero]) t ->
   let query_txt = Format.asprintf "%a" Query.pp query in
-  let query_ty = Query.query_ret_ty ~bool query in
+  let query_ty = Query.query_ret_ty query in
   let query_values = Query.query_values query in
   let ty_map = match Hashtbl.find_opt cache_zero query_txt with
     | Some ty_map -> ty_map
@@ -77,20 +77,20 @@ let make_zero : 'b . bool:bool Type.t -> (unit,'b) Query.t -> (unit, [`Zero]) t 
     Hashtbl.replace cache_zero query_txt ty_map;
     query
 
-let make_one : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`One]) t =
-  fun (type a b) ~bool (query: (a,b) Query.t) : (a, [`One]) t ->
+let make_one : 'a 'b . ('a,'b) Query.t -> ('a, [`One]) t =
+  fun (type a b) (query: (a,b) Query.t) : (a, [`One]) t ->
   let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
-  let ret_ty = Query.query_ret_ty  ~bool query in
+  let ret_ty = Query.query_ret_ty query in
   let request = Caqti_request.create (Type.ty_list_to_caqti_ty query_value_ty) (Type.ty_list_to_caqti_ty ret_ty)
                   Caqti_mult.one (fun _ -> query_repr) in
   MkCaqti (query_value_ty,request), query_values
 
-let make_one : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`One]) t =
-  fun (type a b) ~bool (query: (a,b) Query.t) : (a, [`One]) t ->
+let make_one : 'a 'b . ('a,'b) Query.t -> ('a, [`One]) t =
+  fun (type a b) (query: (a,b) Query.t) : (a, [`One]) t ->
   let query_txt = Format.asprintf "%a" Query.pp query in
-  let query_ty = Query.query_ret_ty ~bool query in
+  let query_ty = Query.query_ret_ty query in
   let query_values = Query.query_values query in
   let ty_map = match Hashtbl.find_opt cache_one query_txt with
     | Some ty_map -> ty_map
@@ -98,25 +98,25 @@ let make_one : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`One]) t =
   match QueryMap.lookup_opt ty_map ~key:query_ty with
   | Some res -> res, query_values
   | None ->
-    let (query_values, _) as query = make_one ~bool query in
+    let (query_values, _) as query = make_one query in
     let ty_map = QueryMap.insert ty_map ~key:query_ty ~data:query_values in
     Hashtbl.replace cache_one query_txt ty_map;
     query
 
-let make_zero_or_one : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
-  fun (type a b) ~bool (query: (a,b) Query.t) : (a, [`Zero | `One]) t ->
+let make_zero_or_one : 'a 'b . ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
+  fun (type a b) (query: (a,b) Query.t) : (a, [`Zero | `One]) t ->
   let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
-  let ret_ty = Query.query_ret_ty ~bool query in
+  let ret_ty = Query.query_ret_ty query in
   let request = Caqti_request.create (Type.ty_list_to_caqti_ty query_value_ty) (Type.ty_list_to_caqti_ty ret_ty)
                   Caqti_mult.zero_or_one (fun _ -> query_repr) in
   MkCaqti (query_value_ty,request), query_values
 
-let make_zero_or_one : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
-  fun (type a b) ~bool (query: (a,b) Query.t) : (a, [`Zero | `One]) t ->
+let make_zero_or_one : 'a 'b . ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
+  fun (type a b) (query: (a,b) Query.t) : (a, [`Zero | `One]) t ->
   let query_txt = Format.asprintf "%a" Query.pp query in
-  let query_ty = Query.query_ret_ty ~bool query in
+  let query_ty = Query.query_ret_ty query in
   let query_values = Query.query_values query in
   let ty_map = match Hashtbl.find_opt cache_zero_or_one query_txt with
     | Some ty_map -> ty_map
@@ -124,25 +124,25 @@ let make_zero_or_one : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`Zer
   match QueryMap.lookup_opt ty_map ~key:query_ty with
   | Some res -> res, query_values
   | None ->
-    let (query_inner, _) as query = make_zero_or_one ~bool query in
+    let (query_inner, _) as query = make_zero_or_one query in
     let ty_map = QueryMap.insert ty_map ~key:query_ty ~data:query_inner in
     Hashtbl.replace cache_zero_or_one query_txt ty_map;
     query
 
-let make_many : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`Many | `Zero | `One]) t =
-  fun (type a b) ~bool (query: (a,b) Query.t) : (a, [`Many | `Zero | `One]) t ->
+let make_many : 'a 'b . ('a,'b) Query.t -> ('a, [`Many | `Zero | `One]) t =
+  fun (type a b) (query: (a,b) Query.t) : (a, [`Many | `Zero | `One]) t ->
   let query_repr = Caqti_query.of_string_exn (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
-  let ret_ty = Query.query_ret_ty ~bool query in
+  let ret_ty = Query.query_ret_ty query in
   let request = Caqti_request.create (Type.ty_list_to_caqti_ty query_value_ty) (Type.ty_list_to_caqti_ty ret_ty)
                   Caqti_mult.zero_or_more (fun _ -> query_repr) in
   MkCaqti (query_value_ty,request), query_values
 
-let make_many : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`Many | `Zero | `One]) t =
-  fun (type a b) ~bool (query: (a,b) Query.t) : (a, [`Many | `Zero | `One]) t ->
+let make_many : 'a 'b . ('a,'b) Query.t -> ('a, [`Many | `Zero | `One]) t =
+  fun (type a b) (query: (a,b) Query.t) : (a, [`Many | `Zero | `One]) t ->
   let query_txt = Format.asprintf "%a" Query.pp query in
-  let query_ty = Query.query_ret_ty ~bool query in
+  let query_ty = Query.query_ret_ty query in
   let query_values = Query.query_values query in
   let ty_map = match Hashtbl.find_opt cache_many query_txt with
     | Some ty_map -> ty_map
@@ -150,7 +150,7 @@ let make_many : 'a 'b . bool:bool Type.t -> ('a,'b) Query.t -> ('a, [`Many | `Ze
   match QueryMap.lookup_opt ty_map ~key:query_ty with
   | Some res -> res, query_values
   | None ->
-    let (query_inner, _) as query = make_many ~bool query in
+    let (query_inner, _) as query = make_many query in
     let ty_map = QueryMap.insert ty_map ~key:query_ty ~data:query_inner in
     Hashtbl.replace cache_many query_txt ty_map;
     query

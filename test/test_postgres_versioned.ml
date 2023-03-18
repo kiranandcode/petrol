@@ -71,7 +71,7 @@ module Bookmark = struct
   end
 
   module V1 = struct
-    let db = Petrol.VersionedSchema.init_postgres v_1_0_0 ~name:"bookmark" 
+    let db = Petrol.VersionedSchema.init v_1_0_0 ~name:"bookmark" 
 
     open Petrol
     open Petrol.Postgres
@@ -111,7 +111,7 @@ module Bookmark = struct
   end
 
   module V1_2  = struct
-    let db = Petrol.VersionedSchema.init_postgres v_1_2_0 ~name:"bookmark" 
+    let db = Petrol.VersionedSchema.init v_1_2_0 ~name:"bookmark" 
 
     open Petrol
     open Petrol.Postgres
@@ -165,7 +165,7 @@ module Bookmark = struct
   end
 
   module V2 = struct
-    let db = Petrol.VersionedSchema.init_postgres v_2 ~name:"bookmark" 
+    let db = Petrol.VersionedSchema.init v_2 ~name:"bookmark" 
 
     open Petrol
     open Petrol.Postgres

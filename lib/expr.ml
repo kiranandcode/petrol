@@ -26,10 +26,16 @@ module Common = struct
   let i i = Types.CONST (i,INTEGER)
   let f i = Types.CONST (i,REAL)
   let s i = Types.CONST (i,TEXT)
+  let bl i = Types.CONST (i,Type.bool)
 
   let i_stat i = Types.CONST_STATIC (i,INTEGER)
   let f_stat i = Types.CONST_STATIC (i,REAL)
   let s_stat i = Types.CONST_STATIC (i,TEXT)
+  let true_ = Types.CONST_STATIC (true,Type.bool)
+  let false_ = Types.CONST_STATIC (false,Type.bool)
+
+  let as_ expr ~name = Types.AS (expr,name), Types.REF (name, Types.ty_expr expr)
+
 
   let nullable v = Types.Common.NULLABLE v
 
@@ -106,14 +112,6 @@ end
 
 module Postgres = struct
   include Common
-
-  let bl i = Types.CONST (i,Type.Postgres.bool)
-
-  let true_ = Types.CONST_STATIC (true,Type.Postgres.bool)
-  let false_ = Types.CONST_STATIC (false,Type.Postgres.bool)
-
-  let as_ expr ~name = Types.AS (expr,name), Types.REF (name, Types.ty_expr ~bool:Type.Postgres.bool expr)
-
 
   let between_symmetric ~lower ~upper x = Types.Postgres.BETWEEN_SYMMETRIC (x,lower,upper)
   let not_between_symmetric ~lower ~upper x = Types.Postgres.NOT_BETWEEN_SYMMETRIC (x,lower,upper)
@@ -222,14 +220,7 @@ module Sqlite3 = struct
   include Common
 
   let b i = Types.CONST (i,Type.Sqlite3.blob)
-  let bl i = Types.CONST (i,Type.Sqlite3.bool)
-
   let b_stat i = Types.CONST_STATIC (i,Type.Sqlite3.blob)
-
-  let true_ = Types.CONST_STATIC (true,Type.Sqlite3.bool)
-  let false_ = Types.CONST_STATIC (false,Type.Sqlite3.bool)
-
-  let as_ expr ~name = Types.AS (expr,name), Types.REF (name, Types.ty_expr ~bool:Type.Sqlite3.bool expr)
 
   let total ?(distinct=false) expr = Types.Sqlite3.TOTAL (distinct,expr)
   let group_concat ?(distinct=false) ?sep_by l = Types.Sqlite3.GROUP_CONCAT (distinct, l, sep_by)

@@ -7,6 +7,7 @@ type 'a t =
   | INTEGER : int t
   | REAL: float t
   | TEXT : string t
+  | BOOLEAN: bool t
   | CUSTOM : {
       ty: 'a Caqti_type.t;
       witness: 'a witness;
@@ -44,15 +45,6 @@ module Numeric = struct
 end
 
 module Postgres = struct
-
-  type 'a witness += BOOLEAN : bool witness
-  let bool = CUSTOM { ty = Caqti_type.bool; repr = "BOOLEAN"; witness=BOOLEAN;
-                         eq_witness={eq=
-                                       fun (type b) (witness: b witness) : (bool, b) eq option ->
-                                         match witness with
-                                         | BOOLEAN -> Some Refl
-                                         | _ -> None
-                                    }}
 
   type 'a witness += BIGINT : int64 witness
   let big_int = CUSTOM { ty = Caqti_type.int64; repr = "BIGINT"; witness=BIGINT;
@@ -135,16 +127,6 @@ end
 
 module Sqlite3 = struct
 
-  type 'a witness += BOOLEAN : bool witness
-  let bool = CUSTOM { ty = Caqti_type.bool; repr = "INTEGER"; witness=BOOLEAN;
-                         eq_witness={eq=
-                                       fun (type b) (witness: b witness) : (bool, b) eq option ->
-                                         match witness with
-                                         | BOOLEAN -> Some Refl
-                                         | _ -> None
-                                    }}
-
-
   type 'a witness += BLOB: string witness
   let blob = CUSTOM { ty = Caqti_type.string; repr = "BLOB"; witness=BLOB;
                       eq_witness={eq=fun (type b) (witness: b witness) : (string, b) eq option ->
@@ -157,6 +139,7 @@ end
 let int = INTEGER
 let real = REAL
 let text = TEXT
+let bool = BOOLEAN
 
 let null_ty : 'a . 'a t -> 'a option t =
   fun (type a) (ty: a t) : a option t ->
@@ -164,6 +147,7 @@ let null_ty : 'a . 'a t -> 'a option t =
   | INTEGER -> NULLABLE INTEGER
   | REAL -> NULLABLE REAL
   | TEXT -> NULLABLE TEXT
+  | BOOLEAN -> NULLABLE BOOLEAN
   | CUSTOM def -> NULLABLE (CUSTOM def)
   | NULLABLE _ -> invalid_arg "already a nullable type"
 
@@ -171,6 +155,7 @@ let rec ty_to_caqti_ty: 'a . 'a t -> 'a Caqti_type.t =
   fun (type a) (ty: a t) : a Caqti_type.t ->
   match ty with
   | INTEGER -> Caqti_type.int
+  | BOOLEAN -> Caqti_type.bool
   | REAL -> Caqti_type.float
   | TEXT -> Caqti_type.string
   | CUSTOM {ty;_} -> ty
@@ -215,6 +200,7 @@ let rec show : 'a . 'a t -> string =  fun (type a) (ty: a t) ->
   match ty with
   | INTEGER -> "INTEGER"
   | REAL -> "REAL"
+  | BOOLEAN -> "BOOLEAN"
   | TEXT -> "TEXT"
   | CUSTOM {repr;_} -> repr
   | NULLABLE ty -> show ty
@@ -223,6 +209,7 @@ let rec pp_value : 'a . 'a t -> Format.formatter -> 'a -> unit =  fun (type a) (
   match ty with
   | INTEGER -> Format.fprintf fmt "%d" vl
   | REAL -> Format.fprintf fmt "%f" vl
+  | BOOLEAN -> Format.fprintf fmt "%b" vl
   | TEXT -> Format.fprintf fmt "%S" vl
   | CUSTOM {ty;_} -> Caqti_type.pp_value fmt (ty,vl)
   | NULLABLE ty ->

@@ -154,7 +154,7 @@ open Petrol
 let version = VersionedSchema.version [1;0;0]
 
 (* define a schema *)
-let schema = VersionedSchema.init_sqlite3 version ~name:"my_application"
+let schema = VersionedSchema.init version ~name:"my_application"
 ]}
 
 Version numbers are ordered lexiographically (i.e [version [2] > version [1;0;0]]).
