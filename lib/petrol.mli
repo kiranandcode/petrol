@@ -236,6 +236,9 @@ module Sqlite3 : sig
     (** [bl v] returns an expression that evaluates to the bool value
         [v].  *)
 
+    val vl: ty:'a Type.t -> 'a -> 'a t
+    (** [vl ~ty value] returns an expression that evaluates to the value [value] with type [ty]. *)
+
     val i_stat : int -> int t
     (** [i_stat v] returns a static expression that evaluates to the
         integer value [v].  *)
@@ -257,6 +260,10 @@ module Sqlite3 : sig
 
     val false_ : bool t
     (** [false_] represents the SQL constant [FALSE].  *)
+
+    val vl_stat: ty:'a Type.t -> 'a -> 'a t
+    (** [vl_stat ~ty value] returns a static expression that evaluates
+        to the value [value] with type [ty]. *)
 
     (** {1 Book-keeping: Types, Naming, Nulls}*)
 
@@ -517,6 +524,9 @@ module Postgres : sig
     (** [bl v] returns an expression that evaluates to the bool value
         [v].  *)
 
+    val vl: ty:'a Type.t -> 'a -> 'a t
+    (** [vl ~ty value] returns an expression that evaluates to the value [value] with type [ty]. *)
+
     val i_stat : int -> int t
     (** [i_stat v] returns a static expression that evaluates to the
         integer value [v].  *)
@@ -534,6 +544,10 @@ module Postgres : sig
 
     val false_ : bool t
     (** [false_] represents the SQL constant [FALSE].  *)
+
+    val vl_stat: ty:'a Type.t -> 'a -> 'a t
+    (** [vl_stat ~ty value] returns a static expression that evaluates
+        to the value [value] with type [ty]. *)
 
     (** {1 Book-keeping: Types, Naming, Nulls}*)
 

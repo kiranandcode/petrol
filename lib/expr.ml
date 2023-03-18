@@ -27,12 +27,15 @@ module Common = struct
   let f i = Types.CONST (i,REAL)
   let s i = Types.CONST (i,TEXT)
   let bl i = Types.CONST (i,Type.bool)
+  let vl ~ty i = Types.CONST (i,ty)
 
   let i_stat i = Types.CONST_STATIC (i,INTEGER)
   let f_stat i = Types.CONST_STATIC (i,REAL)
   let s_stat i = Types.CONST_STATIC (i,TEXT)
   let true_ = Types.CONST_STATIC (true,Type.bool)
   let false_ = Types.CONST_STATIC (false,Type.bool)
+
+  let vl_stat ~ty i = Types.CONST_STATIC (i,ty)
 
   let as_ expr ~name = Types.AS (expr,name), Types.REF (name, Types.ty_expr expr)
 
