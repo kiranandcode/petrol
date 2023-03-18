@@ -53,7 +53,7 @@ let collect_all db =
     |&gt; Petrol.collect_list db
     |&gt; Lwt_result.map (List.map (fun (id, (text, ())) -&gt;
         (id,text)
-    ))</code></pre><p>Note that the <a href="Petrol/Sqlite3/Request/index.html"><code>Request.make_*</code></a> functions cache their results, so it's safe and efficient to call them directly.</p><h4 id="initialisation"><a href="#initialisation" class="anchor"></a>3. Initialise the schema at startup</h4><p>Finally, just make sure to initialise the table during startup when you establish a connection to the SQL server:</p><pre class="language-ocaml"><code>(* ... somewhere at the entry point *)
+    ))</code></pre><p>Note that the <a href="Petrol/Request/index.html"><code>Request.make_*</code></a> functions cache their results, so it's safe and efficient to call them directly.</p><h4 id="initialisation"><a href="#initialisation" class="anchor"></a>3. Initialise the schema at startup</h4><p>Finally, just make sure to initialise the table during startup when you establish a connection to the SQL server:</p><pre class="language-ocaml"><code>(* ... somewhere at the entry point *)
 let () =
    let open Lwt_result.Syntax in
    (* ... *)
