@@ -31,6 +31,8 @@ let rec unwrap : 'a . 'a Type.ty_list * Expr.wrapped_value list -> 'a =
     (vl, unwrap (tyls, ls))
   | Cons (TEXT, tyls), Expr.MkWrapped (TEXT, vl) :: ls  ->
     (vl, unwrap (tyls, ls))
+  | Cons (BOOLEAN, tyls), Expr.MkWrapped (BOOLEAN, vl) :: ls  ->
+    (vl, unwrap (tyls, ls))
   | Cons (CUSTOM {eq_witness;_} as ty, tyls), Expr.MkWrapped (CUSTOM {witness;_} as oty, vl) :: ls ->
     begin match eq_witness.eq witness with
     | Some Refl -> (vl, unwrap (tyls, ls))
