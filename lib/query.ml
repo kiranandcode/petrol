@@ -29,6 +29,13 @@ type ('a,'b,'c) on_err_fun =
   -> ('c, 'a) t
   constraint 'a = ([> `UPDATE | `INSERT]) as 'a
 
+type ('a,'b,'c) on_conflict_fun =
+  ([< `DO_NOTHING ] as 'b) ->
+  ('c, 'a) t
+  -> ('c, 'a) t
+  constraint 'a = ([> `INSERT]) as 'a
+
+
 let query_values query = List.rev (Types.query_values [] query)
 
 let pp = Types.pp_query
@@ -55,7 +62,7 @@ let select exprs ~from:table_name =
 let update ~table:table_name ~set =
   Types.UPDATE { table=table_name; on_err=None; where=None; set; }
 let insert ~table:table_name ~values:set =
-  Types.INSERT { table=table_name; on_err=None; set; }
+  Types.INSERT { table=table_name; on_err=None; on_conflict=None; set; }
 let delete ~from:table_name =
   Types.DELETE { table=table_name; where=None }
 
@@ -129,7 +136,17 @@ let on_err : 'a . [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] -> ('c, 'a)
   | Types.SELECT _
   | Types.DELETE _ -> invalid_arg "on_err only supported for update and insert"
   | Types.UPDATE { table; on_err=_; set; where } -> UPDATE { table; on_err=Some on_err; set; where }
-  | Types.INSERT { table; on_err=_; set } -> INSERT { table; on_err=Some on_err; set } 
+  | Types.INSERT { table; on_err=_; on_conflict; set } -> INSERT { table; on_err=Some on_err; on_conflict; set } 
+
+let on_conflict : 'a . [ `DO_NOTHING ] -> ('c, 'a) t -> ('c, 'a) t =
+  fun on_conflict (type a) (table : (_, a) t) : (_, a) t ->
+  match table with
+  | Types.SELECT_CORE _
+  | Types.SELECT _
+  | Types.UPDATE _ 
+  | Types.DELETE _ -> invalid_arg "on_conflict only supported for insert"
+  | Types.INSERT { table; on_err=on_err; on_conflict=_; set } -> INSERT { table; on_err; on_conflict=Some on_conflict; set } 
+
 
 let limit :
   'a 'i . 

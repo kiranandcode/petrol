@@ -948,8 +948,16 @@ module Query : sig
   type ('a, 'b, 'c) on_err_fun = 'b -> ('c, 'a) t -> ('c, 'a) t
     constraint 'a = [> `INSERT | `UPDATE ]
     constraint 'b = [< `ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ]
-  (** [('a,'b,'c) having_fun] defines the type of an SQL function
-      that corresponds to SQL's HAVING clause ON ERR.  *)
+  (** [('a,'b,'c) on_err] defines the type of an SQL function that
+      corresponds to SQL's ON ERR clause for INSERT and UPDATE. (Note:
+      only works for Sqlite3, use {!on_conflict} for portability when
+      possible). *)
+
+  type ('a, 'b, 'c) on_conflict_fun = 'b -> ('c, 'a) t -> ('c, 'a) t
+    constraint 'a = [> `INSERT ]
+    constraint 'b = [< `DO_NOTHING ]
+  (** [('a,'b,'c) on_conflict_fun] defines the type of an SQL function
+      that corresponds to SQL's ON CONFLICT clause.  *)
 
   val select :
     'a Expr.expr_list -> from:table_name -> ('a, [> `SELECT_CORE ]) t
@@ -983,9 +991,12 @@ module Query : sig
       The ordering of the last two arguments has been chosen to allow
       easily piping this with another SQL query. *)
 
-  val on_err : [ `ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] ->
-    (unit, 'a) t -> (unit, 'a) t
+  val on_err : ([< `INSERT | `UPDATE ], [ `ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ], unit) on_err_fun
   (** [on_err err expr] corresponds to the SQL [{expr} ON ERR {err}].  *)
+
+  val on_conflict : ([< `INSERT ], [ `DO_NOTHING ], unit) on_conflict_fun
+  (** [on_conflict err expr] corresponds to the SQL [{expr} ON CONFLICT {err}] expression.  *)
+
 
   val limit :
     int Expr.t -> ('a, [< `SELECT | `SELECT_CORE ]) t -> ('a, [> `SELECT ]) t

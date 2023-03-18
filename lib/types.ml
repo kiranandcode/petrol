@@ -22,6 +22,10 @@ let pp_on_err : Format.formatter -> [ `ABORT | `FAIL | `IGNORE | `REPLACE | `ROL
     | `FAIL -> Format.fprintf fmt "OR FAIL"
     | `ROLLBACK -> Format.fprintf fmt "OR ROLLBACK"
 
+let pp_on_conflict : Format.formatter -> [ `DO_NOTHING ] -> unit =
+  fun fmt -> function
+    | `DO_NOTHING -> Format.fprintf fmt "ON CONFLICT DO NOTHING"
+
 let pp_opt f fmt = function
   | None -> ()
   | Some vl -> Format.fprintf fmt "\n%a" f vl
@@ -62,6 +66,7 @@ and (_, !'res) query =
   | INSERT : {
     table: table_name;
     on_err: [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] option;
+    on_conflict: [`DO_NOTHING] option;
     set: wrapped_assign list;
   } -> (unit, [> `INSERT] as 'res) query
 
@@ -234,13 +239,13 @@ and pp_query: 'a 'b. Format.formatter ->
           Format.fprintf fmt ", ") pp_wrapped_assign) set
        (pp_opt (fun fmt vl -> Format.fprintf fmt "WHERE %a" pp_expr vl))
        where
-   | INSERT { table; on_err; set } ->
+   | INSERT { table; on_err; on_conflict; set } ->
      let pp_field : 'a . Format.formatter -> 'a expr -> unit =
        fun fmt (type a) (expr: a expr) : unit ->
          match expr with
          | FIELD (_, field, _) -> Format.fprintf fmt "%s" field
          | _ -> Format.kasprintf failwith "expected field for INSERT query, got %a" pp_expr expr in
-     Format.fprintf fmt "INSERT%a INTO %s (%a) VALUES (%a)"
+     Format.fprintf fmt "INSERT%a INTO %s (%a) VALUES (%a)%a"
        (pp_opt pp_on_err) on_err
        (snd table)
        (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
@@ -248,7 +253,9 @@ and pp_query: 'a 'b. Format.formatter ->
        set
        (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
           (fun fmt (ASSIGN (_, expr)) -> Format.fprintf fmt "%a" pp_expr expr))
-       set)
+       set
+       (pp_opt pp_on_conflict) on_conflict
+  )
 and pp_join : Format.formatter -> join -> unit =
   fun fmt (MkJoin { table; on; join_op }) ->
   Format.fprintf fmt "%a (%a) ON %a"
@@ -300,7 +307,7 @@ and query_values : 'a 'b. wrapped_value list -> ('a,'b) query -> wrapped_value l
       values_expr (values_expr acc (FIELD vl)) expr) acc set in
     let acc = Option.map (values_expr acc) where |> Option.value ~default:acc in
     acc
-  | INSERT { table=_; on_err=_; set } ->
+  | INSERT { table=_; on_err=_; on_conflict=_; set } ->
     let acc = List.fold_left (fun acc (ASSIGN (vl, _)) ->
       values_expr acc (FIELD vl)) acc set in
     let acc = List.fold_left (fun acc (ASSIGN (_, expr)) ->
