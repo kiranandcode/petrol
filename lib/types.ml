@@ -427,7 +427,7 @@ module Common = struct
       | UPPER s -> Format.fprintf fmt "UPPER(%a)" pp_expr s
 
       | LIKE (pat, s) ->
-        Format.fprintf fmt "%a LIKE %a" pp_expr pat pp_expr s
+        Format.fprintf fmt "%a LIKE %a" pp_expr s pp_expr pat
 
       | COALESCE exprs ->
         Format.fprintf fmt "COALESCE(%a)"
