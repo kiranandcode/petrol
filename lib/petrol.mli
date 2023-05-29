@@ -1019,6 +1019,14 @@ module Query : sig
         {!Petrol.Query.order_by}, this function allows passing a list
         of elements to be ordered by) *)
 
+  val returning :
+    'c Expr.expr_list -> ('a, [< `UPDATE | `INSERT | `DELETE] as 'b) t -> ('c, 'b) t
+  (** [returning expr] corresponds to the SQL [RETURNING {expr}].
+
+      The [RETURNING] clause is a non-standard extension supported by
+      PostgreSQL since version 8.2 (2006-12-05), and by SQLite since version
+      3.35.0 (2021-03-12). *)
+
 end
 
 module StaticSchema : sig

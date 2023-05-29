@@ -56,25 +56,32 @@ and (_, !'res) query =
   | DELETE : {
     table: table_name;
     where: bool expr option;
-  } -> (unit, [> `DELETE] as 'res) query
+    returning: 'a expr_list;
+  } -> ('a, [> `DELETE] as 'res) query
   | UPDATE : {
     table: table_name;
     on_err: [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] option;
     set: wrapped_assign list;
     where: bool expr option;
-  } -> (unit, [> `UPDATE] as 'res) query
+    returning : 'a expr_list;
+  } -> ('a, [> `UPDATE] as 'res) query
   | INSERT : {
     table: table_name;
     on_err: [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] option;
     on_conflict: [`DO_NOTHING] option;
     set: wrapped_assign list;
-  } -> (unit, [> `INSERT] as 'res) query
+    returning: 'a expr_list;
+  } -> ('a, [> `INSERT] as 'res) query
 
 and join = MkJoin: {
   table: ('r, [< `SELECT_CORE | `SELECT ]) query;
   on: bool expr;
   join_op: join_op;
 } -> join
+
+let pp_opt_expr_list (type a) f fmt : a expr_list -> unit = function
+  | [] -> ()
+  | ls -> Format.fprintf fmt "\n%a" f ls
 
 type wrapped_value = MkWrapped: 'a Type.t * 'a -> wrapped_value
 
@@ -175,6 +182,11 @@ and pp_expr_list : 'a . Format.formatter -> 'a expr_list -> unit =
     | h :: t -> Format.fprintf fmt "%a%a"
                   pp_expr h pp_expr_list_inner t
 
+and pp_returning : 'a. Format.formatter -> 'a expr_list -> unit =
+  fun fmt ->
+    pp_opt_expr_list
+      (fun fmt -> Format.fprintf fmt "RETURNING %a" pp_expr_list) fmt
+
 and pp_ordering_expr_list_inner : 'a . [> `ASC | `DESC] -> Format.formatter -> 'a expr_list -> unit =
   fun ordering fmt (type a) (ls: a expr_list) -> match ls with
     | [] -> ()
@@ -223,29 +235,31 @@ and pp_query: 'a 'b. Format.formatter ->
        (pp_opt (fun fmt vl ->
           Format.fprintf fmt "OFFSET %a" pp_expr vl))
        offset
-   | DELETE { table; where } ->
-     Format.fprintf fmt "DELETE FROM %s%a"
+   | DELETE { table; where; returning } ->
+     Format.fprintf fmt "DELETE FROM %s%a%a"
        (snd table)
        (pp_opt (fun fmt vl ->
           Format.fprintf fmt "WHERE %a"
             pp_expr vl
         ))
        where
-   | UPDATE { table; on_err; set; where } ->
-     Format.fprintf fmt "UPDATE%a %s\nSET %a%a"
+       pp_returning returning
+   | UPDATE { table; on_err; set; where; returning } ->
+     Format.fprintf fmt "UPDATE%a %s\nSET %a%a%a"
        (pp_opt pp_on_err) on_err
        (snd table)
        (Format.pp_print_list ~pp_sep:(fun fmt () ->
           Format.fprintf fmt ", ") pp_wrapped_assign) set
        (pp_opt (fun fmt vl -> Format.fprintf fmt "WHERE %a" pp_expr vl))
        where
-   | INSERT { table; on_err; on_conflict; set } ->
+       pp_returning returning
+   | INSERT { table; on_err; on_conflict; set; returning } ->
      let pp_field : 'a . Format.formatter -> 'a expr -> unit =
        fun fmt (type a) (expr: a expr) : unit ->
          match expr with
          | FIELD (_, field, _) -> Format.fprintf fmt "%s" field
          | _ -> Format.kasprintf failwith "expected field for INSERT query, got %a" pp_expr expr in
-     Format.fprintf fmt "INSERT%a INTO %s (%a) VALUES (%a)%a"
+     Format.fprintf fmt "INSERT%a INTO %s (%a) VALUES (%a)%a%a"
        (pp_opt pp_on_err) on_err
        (snd table)
        (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
@@ -255,6 +269,7 @@ and pp_query: 'a 'b. Format.formatter ->
           (fun fmt (ASSIGN (_, expr)) -> Format.fprintf fmt "%a" pp_expr expr))
        set
        (pp_opt pp_on_conflict) on_conflict
+       pp_returning returning
   )
 and pp_join : int -> Format.formatter -> join -> unit =
   fun n fmt (MkJoin { table; on; join_op }) ->
@@ -306,19 +321,22 @@ and query_values : 'a 'b. wrapped_value list -> ('a,'b) query -> wrapped_value l
     let acc = Option.map (values_expr acc) limit |> Option.value ~default:acc in
     let acc = Option.map (values_expr acc) offset |> Option.value ~default:acc in
     acc
-  | DELETE { table=_; where } ->
+  | DELETE { table=_; where; returning } ->
     let acc = Option.map (values_expr acc) where |> Option.value ~default:acc in
+    let acc = values_expr_list acc returning in
     acc
-  | UPDATE { table=_; on_err=_; set; where } ->
+  | UPDATE { table=_; on_err=_; set; where; returning } ->
     let acc = List.fold_left (fun acc (ASSIGN (vl, expr)) ->
       values_expr (values_expr acc (FIELD vl)) expr) acc set in
     let acc = Option.map (values_expr acc) where |> Option.value ~default:acc in
+    let acc = values_expr_list acc returning in
     acc
-  | INSERT { table=_; on_err=_; on_conflict=_; set } ->
+  | INSERT { table=_; on_err=_; on_conflict=_; set ; returning } ->
     let acc = List.fold_left (fun acc (ASSIGN (vl, _)) ->
       values_expr acc (FIELD vl)) acc set in
     let acc = List.fold_left (fun acc (ASSIGN (_, expr)) ->
       values_expr acc expr) acc set in
+    let acc = values_expr_list acc returning in
     acc
 
 module Common = struct

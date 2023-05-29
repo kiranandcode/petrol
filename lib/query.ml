@@ -50,9 +50,9 @@ let query_ret_ty: 'a 'b. ('a,'b) t -> 'a Type.ty_list =
                SELECT_CORE { exprs; table=_; join=_; where=_; group_by=_; having=_ };
              order_by=_; limit=_; offset=_ } ->
     Expr.ty_expr_list exprs      
-  | DELETE _ -> Nil
-  | UPDATE _ -> Nil
-  | INSERT _ -> Nil
+  | DELETE { returning; _ } -> Expr.ty_expr_list returning
+  | UPDATE { returning; _ } -> Expr.ty_expr_list returning
+  | INSERT { returning; _ } -> Expr.ty_expr_list returning
 
 let select exprs ~from:table_name =
   Types.SELECT_CORE {
@@ -60,11 +60,11 @@ let select exprs ~from:table_name =
     group_by=None; having=None;
   }
 let update ~table:table_name ~set =
-  Types.UPDATE { table=table_name; on_err=None; where=None; set; }
+  Types.UPDATE { table=table_name; on_err=None; where=None; set; returning = [] }
 let insert ~table:table_name ~values:set =
-  Types.INSERT { table=table_name; on_err=None; on_conflict=None; set; }
+  Types.INSERT { table=table_name; on_err=None; on_conflict=None; set; returning = [] }
 let delete ~from:table_name =
-  Types.DELETE { table=table_name; where=None }
+  Types.DELETE { table=table_name; where=None; returning = [] }
 
 let where : ('a,'c) where_fun
   = fun  by (type a b) (table : (b, a) t) : (b, a) t ->
@@ -79,12 +79,12 @@ let where : ('a,'c) where_fun
     | Types.SELECT { core=SELECT_CORE { exprs; table; join; where; group_by; having }; order_by; limit; offset } ->
       let where = update_where where by in
       SELECT { core=SELECT_CORE { exprs; table; join; where; group_by; having }; order_by; limit; offset }
-    | Types.DELETE { table; where } ->
+    | Types.DELETE ({ where ; _ } as query) ->
       let where = update_where where by in
-      DELETE { table; where }
-    | Types.UPDATE { table; on_err; set; where } ->
+      DELETE { query with where }
+    | Types.UPDATE ({ where; _ } as query) ->
       let where = update_where where by in
-      UPDATE { table; on_err; set; where } 
+      UPDATE { query with where }
     | Types.INSERT _ -> invalid_arg "where on insert clause not supported"
 
 let group_by : ('a,'b,'c) group_by_fun =
@@ -135,8 +135,10 @@ let on_err : 'a . [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] -> ('c, 'a)
   | Types.SELECT_CORE _
   | Types.SELECT _
   | Types.DELETE _ -> invalid_arg "on_err only supported for update and insert"
-  | Types.UPDATE { table; on_err=_; set; where } -> UPDATE { table; on_err=Some on_err; set; where }
-  | Types.INSERT { table; on_err=_; on_conflict; set } -> INSERT { table; on_err=Some on_err; on_conflict; set } 
+  | Types.UPDATE query ->
+    UPDATE { query with on_err = Some on_err }
+  | Types.INSERT query ->
+    INSERT { query with on_err = Some on_err }
 
 let on_conflict : 'a . [ `DO_NOTHING ] -> ('c, 'a) t -> ('c, 'a) t =
   fun on_conflict (type a) (table : (_, a) t) : (_, a) t ->
@@ -145,7 +147,8 @@ let on_conflict : 'a . [ `DO_NOTHING ] -> ('c, 'a) t -> ('c, 'a) t =
   | Types.SELECT _
   | Types.UPDATE _ 
   | Types.DELETE _ -> invalid_arg "on_conflict only supported for insert"
-  | Types.INSERT { table; on_err=on_err; on_conflict=_; set } -> INSERT { table; on_err; on_conflict=Some on_conflict; set } 
+  | Types.INSERT query ->
+    INSERT { query with on_conflict = Some on_conflict }
 
 
 let limit :
@@ -203,3 +206,14 @@ let order_by_ :
   | DELETE _
   | UPDATE _
   | INSERT _ -> invalid_arg "order by only supported for select"
+
+let returning :
+    _ Types.expr_list ->
+      (_, [< `UPDATE | `INSERT | `DELETE] as 'b) t ->
+      (_, 'b) t =
+  fun (type b) returning (table : (_, b) t) : (_, b) t ->
+  match table with
+  | Types.DELETE query -> DELETE { query with returning }
+  | UPDATE query -> UPDATE { query with returning }
+  | INSERT query -> INSERT { query with returning }
+  | SELECT_CORE _ | SELECT _ -> invalid_arg "returning not supported for select"

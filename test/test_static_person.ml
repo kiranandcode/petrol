@@ -10,24 +10,25 @@ module Person = struct
   module Sql = struct
     open Petrol
     open Petrol.Sqlite3
-    let t, Expr.[name;age] =
+    let t, Expr.[pid;name;age] =
       StaticSchema.declare_table db ~name:"person"
         Schema.[
-          field ~constraints:[primary_key ~name:"unique_names" ()] "name" ~ty:Type.text;
+          field ~constraints:[primary_key ~auto_increment:true ()] "id" ~ty:Type.int;
+          field ~constraints:[unique ~name:"unique_names" ()] "name" ~ty:Type.text;
           field "age" ~ty:Type.int;
         ]
 
     let insert {name=n;age=a} db =
       Query.insert ~table:t ~values:Expr.[name := s n; age := i a]
-      |> Request.make_zero
-      |> Petrol.exec db
+      |> Query.returning Expr.[pid]
+      |> Request.make_one
+      |> Petrol.find db
 
     let delete ~name:nme db =
       Query.delete ~from:t
       |> Query.where Expr.(name = s nme)
       |> Request.make_zero
       |> Petrol.exec db
-
 
     let update_age ~name:nm a db =
       Query.update ~table:t ~set:Expr.[age := i a]
@@ -78,7 +79,8 @@ let () =
     | "add", [name;age] ->
       let age = int_of_string age in
       let* _ = Petrol.StaticSchema.initialise db conn in
-      let* _ = Person.Sql.insert Person.{name;age} conn in
+      let* (pid, ()) = Person.Sql.insert Person.{name;age} conn in
+      print_endline ("- id: " ^ string_of_int pid);
       Lwt.return_ok ()
     |  "find-by", [name] ->
       let* _ = Petrol.StaticSchema.initialise db conn in
@@ -117,7 +119,8 @@ let () =
       let* conn = Caqti_lwt.connect (Uri.of_string ("sqlite3://:" ^ fname)) in
       let* _ = Petrol.StaticSchema.initialise db conn in
       let person = Person.random () in
-      let* _ = Person.Sql.insert person conn in
+      let* (pid, ()) = Person.Sql.insert person conn in
+      print_endline ("- id: " ^ string_of_int pid);
       Lwt.return_ok ()
   end
 
