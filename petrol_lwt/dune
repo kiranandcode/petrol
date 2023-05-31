@@ -1,0 +1,4 @@
+(library
+ (name petrol_lwt)
+ (public_name petrol_lwt)
+ (libraries petrol caqti caqti-lwt))
