@@ -21,6 +21,20 @@
  (depends
   (ocaml (>= 4.12))
   (dune (>= 3.3))
+  (caqti (>= 1.8.0))
+  (caqti-driver-sqlite3 (and :with-test (>= 1.8.0)))
+  (caqti-driver-postgresql (and :with-test (>= 1.8.0)))
+ )
+ (tags
+  (sql)))
+
+(package
+ (name petrol_lwt)
+ (synopsis "Petrol's an OCaml SQL API made to go FAST")
+ (description "Petrol is an typed embedding of SQL into OCaml integrated with Caqti and support for versioning.")
+ (depends
+  (ocaml (>= 4.12))
+  (dune (>= 3.3))
   (lwt (>= 5.5))
   (caqti (>= 1.8.0))
   (caqti-lwt (>= 1.8.0))
