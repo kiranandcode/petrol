@@ -174,6 +174,7 @@ let rec eq_ty: 'a 'b . 'a t * 'b t -> ('a,'b) eq option =
   | (INTEGER, INTEGER) -> Some Refl
   | (REAL, REAL) -> Some Refl
   | (TEXT, TEXT) -> Some Refl
+  | (BOOLEAN, BOOLEAN) -> Some Refl
   | (CUSTOM {ty=_; repr=_;eq_witness;_}, CUSTOM {ty=_; repr=_; witness;_}) ->
     eq_witness.eq witness
   | (NULLABLE l, NULLABLE r) -> begin match eq_ty (l,r) with
