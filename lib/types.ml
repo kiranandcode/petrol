@@ -72,9 +72,12 @@ and (_, !'res) query =
     set: wrapped_assign list;
     returning: 'a expr_list;
   } -> ('a, [> `INSERT] as 'res) query
+  | TABLE : {
+    table: table_name;
+  } -> ('a, [> `TABLE]) query
 
 and join = MkJoin: {
-  table: ('r, [< `SELECT_CORE | `SELECT ]) query;
+  table: ('r, [< `SELECT_CORE | `SELECT | `TABLE ]) query;
   on: bool expr;
   join_op: join_op;
 } -> join
@@ -270,13 +273,21 @@ and pp_query: 'a 'b. Format.formatter ->
        set
        (pp_opt pp_on_conflict) on_conflict
        pp_returning returning
+     | TABLE { table } -> Format.fprintf fmt "%s" (snd table)
   )
 and pp_join : int -> Format.formatter -> join -> unit =
   fun n fmt (MkJoin { table; on; join_op }) ->
-  Format.fprintf fmt "%a (%a) AS join_tmp_%d ON %a"
-    pp_join_op join_op
-    pp_query table n
-    pp_expr on
+  match table with
+  | TABLE { table } -> 
+      Format.fprintf fmt "%a %s ON %a"
+        pp_join_op join_op
+        (snd table)
+        pp_expr on
+  | _ -> 
+      Format.fprintf fmt "%a (%a) AS join_tmp_%d ON %a"
+        pp_join_op join_op
+        pp_query table n
+        pp_expr on
 and pp_join_list : Format.formatter -> join list -> unit =
   fun fmt ls ->
   match ls with
@@ -338,6 +349,7 @@ and query_values : 'a 'b. wrapped_value list -> ('a,'b) query -> wrapped_value l
       values_expr acc expr) acc set in
     let acc = values_expr_list acc returning in
     acc
+  | TABLE _ -> invalid_arg "unable to coerce TABLE to value"
 
 module Common = struct
 
