@@ -19,7 +19,7 @@ type ('a,'c) having_fun =
 
 type ('a,'b,'d,'c) join_fun =
   ?op:Types.join_op -> on:bool Expr.t ->
-  ('b, [< `SELECT_CORE | `SELECT ] as 'd) t
+  ('b, [< `SELECT_CORE | `SELECT | `TABLE ] as 'd) t
   -> ('c, 'a) t -> ('c, 'a) t
   constraint 'a = ([< `SELECT_CORE]) as 'a
 
@@ -53,6 +53,7 @@ let query_ret_ty: 'a 'b. ('a,'b) t -> 'a Type.ty_list =
   | DELETE { returning; _ } -> Expr.ty_expr_list returning
   | UPDATE { returning; _ } -> Expr.ty_expr_list returning
   | INSERT { returning; _ } -> Expr.ty_expr_list returning
+  | TABLE _ -> invalid_arg "TABLE is not a valid query_ret_ty"
 
 let select exprs ~from:table_name =
   Types.SELECT_CORE {
@@ -86,6 +87,7 @@ let where : ('a,'c) where_fun
       let where = update_where where by in
       UPDATE { query with where }
     | Types.INSERT _ -> invalid_arg "where on insert clause not supported"
+    | Types.TABLE _ -> invalid_arg "where on table clause not supported"
 
 let group_by : ('a,'b,'c) group_by_fun =
   fun by (type a b) (table : (b, a) t) : (b, a) t ->
@@ -96,7 +98,8 @@ let group_by : ('a,'b,'c) group_by_fun =
     SELECT { core=SELECT_CORE { exprs; table; join; where; group_by=Some by; having }; order_by; limit; offset }
   | Types.DELETE _ 
   | Types.UPDATE _ 
-  | Types.INSERT _ -> invalid_arg "group by only supported on select clause"
+  | Types.INSERT _
+  | Types.TABLE _ -> invalid_arg "group by only supported on select clause"
 
 let having : ('a,'c) having_fun =
   fun having (type a b) (table : (b, a) t) : (b, a) t ->
@@ -107,7 +110,8 @@ let having : ('a,'c) having_fun =
     SELECT { core=SELECT_CORE { exprs; table; join; where; group_by; having=Some having }; order_by; limit; offset }
   | Types.DELETE _ 
   | Types.UPDATE _ 
-  | Types.INSERT _ -> invalid_arg "group by only supported on select clause"
+  | Types.INSERT _
+  | Types.TABLE _ -> invalid_arg "group by only supported on select clause"
 
 let join : ('a,'b,'d,'c) join_fun =
   fun ?(op=INNER) ~on (type a b c) (ot: (b, _) t)
@@ -126,7 +130,8 @@ let join : ('a,'b,'d,'c) join_fun =
     | Types.SELECT _
     | Types.DELETE _ 
     | Types.UPDATE _ 
-    | Types.INSERT _ ->
+    | Types.INSERT _ 
+    | Types.TABLE _ ->
       invalid_arg "group by only supported on select clause"
 
 let on_err : 'a . [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] -> ('c, 'a) t -> ('c, 'a) t =
@@ -134,7 +139,8 @@ let on_err : 'a . [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] -> ('c, 'a)
   match table with
   | Types.SELECT_CORE _
   | Types.SELECT _
-  | Types.DELETE _ -> invalid_arg "on_err only supported for update and insert"
+  | Types.DELETE _ 
+  | Types.TABLE _ -> invalid_arg "on_err only supported for update and insert"
   | Types.UPDATE query ->
     UPDATE { query with on_err = Some on_err }
   | Types.INSERT query ->
@@ -146,10 +152,15 @@ let on_conflict : 'a . [ `DO_NOTHING ] -> ('c, 'a) t -> ('c, 'a) t =
   | Types.SELECT_CORE _
   | Types.SELECT _
   | Types.UPDATE _ 
-  | Types.DELETE _ -> invalid_arg "on_conflict only supported for insert"
+  | Types.DELETE _
+  | Types.TABLE _ -> invalid_arg "on_conflict only supported for insert"
   | Types.INSERT query ->
     INSERT { query with on_conflict = Some on_conflict }
 
+
+
+let table (table: Types.table_name) : (_, [>`TABLE]) t =
+  Types.TABLE { table }
 
 let limit :
   'a 'i . 
@@ -163,7 +174,8 @@ let limit :
     SELECT { core; order_by; limit=Some by; offset }
   | DELETE _
   | UPDATE _
-  | INSERT _ -> invalid_arg "limit only supported for select"
+  | INSERT _
+  | TABLE _ -> invalid_arg "limit only supported for select"
 
 let offset :
   'a 'i . 
@@ -177,7 +189,8 @@ let offset :
     SELECT { core; order_by; limit; offset=Some by }
   | DELETE _
   | UPDATE _
-  | INSERT _ -> invalid_arg "offset only supported for select"
+  | INSERT _
+  | TABLE _ -> invalid_arg "offset only supported for select"
 
 let order_by :
   'a 'b. ?direction:[ `ASC | `DESC ] ->
@@ -191,7 +204,8 @@ let order_by :
     SELECT { core; order_by= Some(direction,Expr.[field]); limit; offset }
   | DELETE _
   | UPDATE _
-  | INSERT _ -> invalid_arg "order by only supported for select"
+  | INSERT _
+  | TABLE _ -> invalid_arg "order by only supported for select"
 
 let order_by_ :
   'a 'b. ?direction:[ `ASC | `DESC ] ->
@@ -205,7 +219,8 @@ let order_by_ :
     SELECT { core; order_by= Some(direction,field); limit; offset }
   | DELETE _
   | UPDATE _
-  | INSERT _ -> invalid_arg "order by only supported for select"
+  | INSERT _
+  | TABLE _ -> invalid_arg "order by only supported for select"
 
 let returning :
     _ Types.expr_list ->
@@ -216,4 +231,4 @@ let returning :
   | Types.DELETE query -> DELETE { query with returning }
   | UPDATE query -> UPDATE { query with returning }
   | INSERT query -> INSERT { query with returning }
-  | SELECT_CORE _ | SELECT _ -> invalid_arg "returning not supported for select"
+  | SELECT_CORE _ | SELECT _ | TABLE _  -> invalid_arg "returning not supported for select"
