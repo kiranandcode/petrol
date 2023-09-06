@@ -527,6 +527,11 @@ module Postgres : sig
     (** [s v] returns an expression that evaluates to the string value
         [v].  *)
 
+    val i_opt : int option -> int option t
+    val f_opt : float option -> float option t
+    val s_opt : string option -> string option t
+    val bl_opt : bool option -> bool option t
+
     val bl : bool -> bool t
     (** [bl v] returns an expression that evaluates to the bool value
         [v].  *)
