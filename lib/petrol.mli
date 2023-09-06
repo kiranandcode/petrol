@@ -164,6 +164,8 @@ module Sqlite3 : sig
     val blob : string t
     (** [blob] represents the SQL BLOB type.  *)
 
+    val null_ty : 'a t -> 'a option t
+
     module Numeric = Type.Numeric
 
   end 
@@ -227,6 +229,11 @@ module Sqlite3 : sig
     val s : string -> string t
     (** [s v] returns an expression that evaluates to the string value
         [v].  *)
+
+    val i_opt : int option -> int option t
+    val f_opt : float option -> float option t
+    val s_opt : string option -> string option t
+    val bl_opt : bool option -> bool option t
 
     val b : string -> string t
     (** [b v] returns an expression that evaluates to the bytes value
