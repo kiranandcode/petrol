@@ -858,7 +858,7 @@ module Schema : sig
   val table_unique :
     ?name:string ->
     ?on_conflict:conflict_clause -> string list -> [ `Table ] constraint_
-  (** [unique ?name ?on_conflict cols] returns a new SQL table
+  (** [table_unique ?name ?on_conflict cols] returns a new SQL table
       constraint that specifies that the table it is attached to's
       values for the columns [cols] must be unique.
 
