@@ -166,7 +166,7 @@ let rec ty_list_to_caqti_ty: 'a . 'a ty_list -> 'a Caqti_type.t =
   match ls with
   | Nil -> Caqti_type.unit
   | Cons (h, t) ->
-    Caqti_type.tup2 (ty_to_caqti_ty h) (ty_list_to_caqti_ty t)
+    Caqti_type.t2 (ty_to_caqti_ty h) (ty_list_to_caqti_ty t)
 
 let rec eq_ty: 'a 'b . 'a t * 'b t -> ('a,'b) eq option =
   fun (type a b) ((e1,e2): a t * b t) : (a,b) eq option ->
@@ -211,7 +211,19 @@ let rec pp_value : 'a . 'a t -> Format.formatter -> 'a -> unit =  fun (type a) (
   | INTEGER -> Format.fprintf fmt "%d" vl
   | REAL -> Format.fprintf fmt "%f" vl
   | BOOLEAN -> Format.fprintf fmt "%b" vl
-  | TEXT -> Format.fprintf fmt "%s" (Caqti_sql.sql_quoted vl)[@alert "-deprecated"]
+  | TEXT ->
+    let quote_and_escape s =
+      let buf = Buffer.create (5 * String.length s / 4 + 2) in
+      Buffer.add_char buf '\'';
+      for i = 0 to String.length s - 1 do
+        match s.[i] with
+        | '\'' -> Buffer.add_string buf "''"
+        | c -> Buffer.add_char buf c
+      done;
+      Buffer.add_char buf '\'';
+      Buffer.contents buf
+    in
+    Format.fprintf fmt "%s" (quote_and_escape vl)
   | CUSTOM {ty;_} -> Caqti_type.pp_value fmt (ty,vl)
   | NULLABLE ty ->
     match vl with
