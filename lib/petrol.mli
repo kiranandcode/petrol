@@ -164,6 +164,8 @@ module Sqlite3 : sig
     val blob : string t
     (** [blob] represents the SQL BLOB type.  *)
 
+    val null_ty : 'a t -> 'a option t
+
     module Numeric = Type.Numeric
 
   end 
@@ -227,6 +229,11 @@ module Sqlite3 : sig
     val s : string -> string t
     (** [s v] returns an expression that evaluates to the string value
         [v].  *)
+
+    val i_opt : int option -> int option t
+    val f_opt : float option -> float option t
+    val s_opt : string option -> string option t
+    val bl_opt : bool option -> bool option t
 
     val b : string -> string t
     (** [b v] returns an expression that evaluates to the bytes value
@@ -519,6 +526,11 @@ module Postgres : sig
     val s : string -> string t
     (** [s v] returns an expression that evaluates to the string value
         [v].  *)
+
+    val i_opt : int option -> int option t
+    val f_opt : float option -> float option t
+    val s_opt : string option -> string option t
+    val bl_opt : bool option -> bool option t
 
     val bl : bool -> bool t
     (** [bl v] returns an expression that evaluates to the bool value
@@ -941,7 +953,7 @@ module Query : sig
   type ('a, 'b, 'd, 'c) join_fun =
     ?op:join_op ->
     on:bool Expr.t -> ('b, 'd) t -> ('c, 'a) t -> ('c, 'a) t
-    constraint 'a = [< `SELECT_CORE ] constraint 'd = [< `SELECT_CORE | `SELECT ]
+    constraint 'a = [< `SELECT_CORE ] constraint 'd = [< `SELECT_CORE | `SELECT | `TABLE]
   (** [('a,'b,'c,'d) join_fun] defines the type of an SQL function
       that corresponds to SQL's JOIN clause.  *)
 
@@ -985,7 +997,7 @@ module Query : sig
   val having : ([< `SELECT | `SELECT_CORE ], 'c) having_fun
   (** [having fields expr] corresponds to the SQL [{expr} HAVING {fields}].  *)
 
-  val join : ([ `SELECT_CORE ], 'b, [< `SELECT_CORE | `SELECT ], 'c) join_fun
+  val join : ([ `SELECT_CORE ], 'b, [< `SELECT_CORE | `SELECT | `TABLE], 'c) join_fun
   (** [join ?op ~on oexpr expr] corresponds to the SQL [{expr} {op} JOIN {oexpr} ON {expr}].
 
       The ordering of the last two arguments has been chosen to allow
@@ -1001,6 +1013,9 @@ module Query : sig
   val limit :
     int Expr.t -> ('a, [< `SELECT | `SELECT_CORE ]) t -> ('a, [> `SELECT ]) t
   (** [limit count expr] corresponds to the SQL [{expr} LIMIT {count}].  *)
+
+  val table : table_name -> (_, [> `TABLE]) t
+  (** Make a table for a join  *)
 
   val offset
     : int Expr.t -> ('a, [< `SELECT | `SELECT_CORE ]) t -> ('a, [> `SELECT ]) t

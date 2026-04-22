@@ -29,6 +29,12 @@ module Common = struct
   let bl i = Types.CONST (i,Type.bool)
   let vl ~ty i = Types.CONST (i,ty)
 
+  let vl_opt ~ty i = Types.CONST (i, NULLABLE ty)
+  let i_opt i = Types.CONST (i, NULLABLE INTEGER)
+  let f_opt i = Types.CONST (i, NULLABLE REAL)
+  let s_opt i = Types.CONST (i, NULLABLE TEXT)
+  let bl_opt i = Types.CONST (i, NULLABLE Type.bool)
+
   let i_stat i = Types.CONST_STATIC (i,INTEGER)
   let f_stat i = Types.CONST_STATIC (i,REAL)
   let s_stat i = Types.CONST_STATIC (i,TEXT)
