@@ -1,3 +1,1 @@
-(cram
- (deps ../test_postgres_versioned.exe)
- (enabled_if (= %{profile} test)))
+(cram (deps ../test_postgres_versioned.exe))

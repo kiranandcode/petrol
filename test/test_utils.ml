@@ -16,7 +16,7 @@ let main f =
   let open Lwt_result.Syntax in
   let fname = Sys.argv.(2) in
   run begin
-    let* conn = Caqti_lwt.connect (Uri.of_string ("sqlite3://:" ^ fname)) in
+    let* conn = Caqti_lwt_unix.connect (Uri.of_string ("sqlite3://:" ^ fname)) in
     let args = List.init (Array.length Sys.argv - 3) (fun ind -> Sys.argv.(3 + ind)) in
     match f conn (Sys.argv.(1), args) with
     | computation ->
@@ -30,17 +30,17 @@ let main_postgres f =
     let args = List.init (Array.length Sys.argv - 1) (fun ind -> Sys.argv.(1 + ind)) in
     match[@warning "-8"] args with
     | ["createdb"; name] ->
-      let* (module DB) = Caqti_lwt.connect (Uri.of_string "postgresql://localhost:5432") in
+      let* (module DB) = Caqti_lwt_unix.connect (Uri.of_string "postgresql://") in
       Lwt.bind (DB.exec (Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
                            (Format.sprintf {sql| CREATE DATABASE %s |sql} name)) ()) @@ 
       fun err -> Lwt.bind (DB.disconnect ()) @@ fun () -> Lwt.return err
     | ["dropdb"; name] ->
-      let* (module DB) = Caqti_lwt.connect (Uri.of_string "postgresql://localhost:5432") in
+      let* (module DB) = Caqti_lwt_unix.connect (Uri.of_string "postgresql://") in
       Lwt.bind (DB.exec (Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
                            (Format.sprintf {sql| DROP DATABASE IF EXISTS %s WITH (FORCE) |sql} name)) ()) @@
       fun err -> Lwt.bind (DB.disconnect ()) @@ fun () -> Lwt.return err
     | name :: args ->
-      let* ((module DB) as conn) = Caqti_lwt.connect (Uri.of_string (Format.sprintf "postgresql://localhost:5432/%s" name)) in
+      let* ((module DB) as conn) = Caqti_lwt_unix.connect (Uri.of_string (Format.sprintf "postgresql:///%s" name)) in
       try
         Lwt.bind begin match f conn args with
           | computation -> computation
