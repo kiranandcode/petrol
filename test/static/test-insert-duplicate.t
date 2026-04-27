@@ -10,5 +10,5 @@
   $ ../test_static_person.exe add test.db harry 10
   - id: 5
   $ ../test_static_person.exe add test.db harry 10
-  Fatal error: exception Response from <sqlite3:///test.db> failed: UNIQUE constraint failed: person.name. Query: "INSERT INTO person (name, age) VALUES (?1, ?2)\nRETURNING person.id".
+  Fatal error: exception Request to <sqlite3:///test.db> failed: UNIQUE constraint failed: person.name (ERC#2067). Query: "INSERT INTO person (name, age) VALUES (?1, ?2)\nRETURNING person.id".
   [2]
