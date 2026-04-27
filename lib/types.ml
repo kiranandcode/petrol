@@ -46,32 +46,32 @@ and (_, !'res) query =
       where: bool expr option;
       group_by: 'b expr_list option;
       having: bool expr option;
-    } -> ('a, [> `SELECT_CORE] as 'res) query
+    } -> ('a, [> `SELECT_CORE]) query
   | SELECT : {
       core: ('a, [< `SELECT_CORE ]) query;
       order_by: ([`ASC | `DESC] * 'e expr_list) option;
       limit: int expr option;
       offset: int expr option
-    } -> ('a, [> `SELECT] as 'res) query
+    } -> ('a, [> `SELECT]) query
   | DELETE : {
     table: table_name;
     where: bool expr option;
     returning: 'a expr_list;
-  } -> ('a, [> `DELETE] as 'res) query
+  } -> ('a, [> `DELETE]) query
   | UPDATE : {
     table: table_name;
     on_err: [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] option;
     set: wrapped_assign list;
     where: bool expr option;
     returning : 'a expr_list;
-  } -> ('a, [> `UPDATE] as 'res) query
+  } -> ('a, [> `UPDATE]) query
   | INSERT : {
     table: table_name;
     on_err: [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] option;
     on_conflict: [`DO_NOTHING] option;
     set: wrapped_assign list;
     returning: 'a expr_list;
-  } -> ('a, [> `INSERT] as 'res) query
+  } -> ('a, [> `INSERT]) query
 
 and join = MkJoin: {
   table: ('r, [< `SELECT_CORE | `SELECT ]) query;
