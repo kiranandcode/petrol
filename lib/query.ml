@@ -19,7 +19,7 @@ type ('a,'c) having_fun =
 
 type ('a,'b,'d,'c) join_fun =
   ?op:Types.join_op -> on:bool Expr.t ->
-  ('b, [< `SELECT_CORE | `SELECT ] as 'd) t
+  ([< `TABLE | `SUBQUERY ] as 'd) Types.table_ref
   -> ('c, 'a) t -> ('c, 'a) t
   constraint 'a = ([< `SELECT_CORE]) as 'a
 
@@ -34,7 +34,6 @@ type ('a,'b,'c) on_conflict_fun =
   ('c, 'a) t
   -> ('c, 'a) t
   constraint 'a = ([> `INSERT]) as 'a
-
 
 let query_values query = List.rev (Types.query_values [] query)
 
@@ -110,8 +109,7 @@ let having : ('a,'c) having_fun =
   | Types.INSERT _ -> invalid_arg "group by only supported on select clause"
 
 let join : ('a,'b,'d,'c) join_fun =
-  fun ?(op=INNER) ~on (type a b c) (ot: (b, _) t)
-    (table : (c, a) t)  ->
+  fun ?(op=INNER) ~on (type a c) (ot: _ Types.table_ref) (table : (c, a) t) ->
     match table with
     | Types.SELECT_CORE { exprs; table; join; where; group_by; having } ->
       Types.SELECT_CORE {
@@ -127,7 +125,7 @@ let join : ('a,'b,'d,'c) join_fun =
     | Types.DELETE _ 
     | Types.UPDATE _ 
     | Types.INSERT _ ->
-      invalid_arg "group by only supported on select clause"
+      invalid_arg "join only supported on select clause"
 
 let on_err : 'a . [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] -> ('c, 'a) t -> ('c, 'a) t =
   fun on_err (type a) (table : (_, a) t) : (_, a) t ->
@@ -217,3 +215,26 @@ let returning :
   | UPDATE query -> UPDATE { query with returning }
   | INSERT query -> INSERT { query with returning }
   | SELECT_CORE _ | SELECT _ -> invalid_arg "returning not supported for select"
+
+let as_ :
+    'a 'b.
+    name:string ->
+    ('a, [< `SELECT | `SELECT_CORE ] as 'b) t ->
+    [ `SUBQUERY ] Types.table_ref * 'a Expr.expr_list =
+  fun (type a b) ~name (query : (a, b) t) : ([ `SUBQUERY ] Types.table_ref * a Expr.expr_list) ->
+  let rec update_fields : 'c. 'c Types.expr_list -> 'c Types.expr_list =
+    fun (type c) (exprs : c Types.expr_list) : c Types.expr_list ->
+    let open Types in
+    match exprs with
+    | [] -> []
+    | FIELD field :: exprs ->
+      FIELD {field with table_name = name} :: update_fields exprs
+    | e :: exprs -> e :: update_fields exprs
+  in
+  let exprs =
+    match query with
+    | SELECT_CORE {exprs; _} -> exprs
+    | SELECT {core = SELECT_CORE core; _} -> core.exprs
+    | UPDATE _ | INSERT _ | DELETE _ -> invalid_arg "as_ only supported for select"
+  in
+  Types.SUBQUERY (name, query), (update_fields exprs)

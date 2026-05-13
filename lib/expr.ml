@@ -53,8 +53,8 @@ module Common = struct
 
   let unset l =
     match l with
-    | Types.FIELD (tbl, fld, ty) ->
-      Types.ASSIGN ((tbl, fld, (null ty)), Types.NULL (null ty))
+    | Types.FIELD ({ty; _} as f) ->
+      Types.ASSIGN ({f with ty = (null ty)}, Types.NULL (null ty))
     | _ -> invalid_arg "LHS of an unset must be a field"
 
   let (+) l r = Types.Common.ADD (Type.Numeric.Int, l, r)
