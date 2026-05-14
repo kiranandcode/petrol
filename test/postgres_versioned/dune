@@ -1,1 +1,2 @@
-(cram (deps ../test_postgres_versioned.exe))
+(cram
+ (deps ../test_postgres_versioned_bookmark.exe))

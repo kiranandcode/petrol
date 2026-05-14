@@ -3,9 +3,9 @@
   test_static_person
   test_static_pet
   test_versioned_bookmark
-  test_postgres_static
+  test_postgres_static_person
   test_postgres_static_pet
-  test_postgres_versioned)
+  test_postgres_versioned_bookmark)
  (modules
   (:standard \ "test_utils"))
  (libraries
