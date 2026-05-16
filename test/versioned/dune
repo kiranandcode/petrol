@@ -1,3 +1,2 @@
 (cram
- (deps ../test_versioned_bookmark.exe)
- (enabled_if (= %{profile} test)))
+ (deps ../test_versioned_bookmark.exe))

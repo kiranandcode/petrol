@@ -1,5 +1,9 @@
-type table_name
-(** Uniquely identifies a table in the system.  *)
+type 'kind table_ref
+(** Uniquely identifies a table or a subquery in the system.
+
+    - a [[` TABLE ] table_ref] references a physical table.
+    - a [[` SUBQUERY ] table_ref] references an aliased subquery (see
+      {!Query.as_}). *)
 
 module Expr : sig
 
@@ -871,7 +875,7 @@ module Schema : sig
     ?name:string ->
     ?on_update:foreign_conflict_clause ->
     ?on_delete:foreign_conflict_clause ->
-    table:table_name ->
+    table:([ `TABLE ] table_ref) ->
     columns:'a Expr.expr_list -> unit -> [ `Column ] constraint_
   (** [foreign_key ?name ?on_update ?on_delete ~table ~columns ()]
       returns a new SQL column constraint that specifies that the
@@ -888,7 +892,7 @@ module Schema : sig
     ?name:string ->
     ?on_update:foreign_conflict_clause ->
     ?on_delete:foreign_conflict_clause ->
-    table:table_name ->
+    table:([ `TABLE ] table_ref) ->
     columns:'a Expr.expr_list -> string list -> [ `Table ] constraint_
     (** [table_foreign_key ?name ?on_update ?on_delete ~table ~columns
         cols] returns a new SQL table constraint that specifies that the
@@ -940,8 +944,8 @@ module Query : sig
 
   type ('a, 'b, 'd, 'c) join_fun =
     ?op:join_op ->
-    on:bool Expr.t -> ('b, 'd) t -> ('c, 'a) t -> ('c, 'a) t
-    constraint 'a = [< `SELECT_CORE ] constraint 'd = [< `SELECT_CORE | `SELECT ]
+    on:bool Expr.t -> 'd table_ref -> ('c, 'a) t -> ('c, 'a) t
+    constraint 'a = [< `SELECT_CORE ] constraint 'd = [< `TABLE | `SUBQUERY ]
   (** [('a,'b,'c,'d) join_fun] defines the type of an SQL function
       that corresponds to SQL's JOIN clause.  *)
 
@@ -960,19 +964,19 @@ module Query : sig
       that corresponds to SQL's ON CONFLICT clause.  *)
 
   val select :
-    'a Expr.expr_list -> from:table_name -> ('a, [> `SELECT_CORE ]) t
+    'a Expr.expr_list -> from:([< `TABLE | `SUBQUERY ] table_ref) -> ('a, [> `SELECT_CORE ]) t
   (** [select fields ~from] corresponds to the SQL [SELECT {fields} FROM {from}]. *)
 
   val update :
-    table:table_name -> set:Expr.wrapped_assign list -> (unit, [> `UPDATE ]) t
+    table:([ `TABLE ] table_ref) -> set:Expr.wrapped_assign list -> (unit, [> `UPDATE ]) t
   (** [update ~table ~set] corresponds to the SQL [UPDATE {set} FROM {table}]. *)
 
   val insert :
-    table:table_name ->
+    table:([ `TABLE ] table_ref) ->
     values:Expr.wrapped_assign list -> (unit, [> `INSERT ]) t
   (** [insert ~table ~values] corresponds to the SQL [INSERT {values} INTO {table}]. *)
 
-  val delete : from:table_name -> (unit, [> `DELETE ]) t
+  val delete : from:[ `TABLE ] table_ref -> (unit, [> `DELETE ]) t
   (** [delete ~from] corresponds to the SQL [DELETE FROM {from}].  *)
 
   val where :
@@ -985,7 +989,7 @@ module Query : sig
   val having : ([< `SELECT | `SELECT_CORE ], 'c) having_fun
   (** [having fields expr] corresponds to the SQL [{expr} HAVING {fields}].  *)
 
-  val join : ([ `SELECT_CORE ], 'b, [< `SELECT_CORE | `SELECT ], 'c) join_fun
+  val join : ([ `SELECT_CORE ], 'b, [< `TABLE | `SUBQUERY ], 'c) join_fun
   (** [join ?op ~on oexpr expr] corresponds to the SQL [{expr} {op} JOIN {oexpr} ON {expr}].
 
       The ordering of the last two arguments has been chosen to allow
@@ -1027,6 +1031,16 @@ module Query : sig
       PostgreSQL since version 8.2 (2006-12-05), and by SQLite since version
       3.35.0 (2021-03-12). *)
 
+  val as_ :
+    name:string ->
+    ('a, [< `SELECT | `SELECT_CORE]) t ->
+    [ `SUBQUERY ] table_ref * 'a Expr.expr_list
+  (** [as_ ~name expr] corresponds to the SQL [{expr} AS {name}] where
+      [expr] must be a select query.
+
+      This function returns a table name and an expression list which can be
+      used in other select queries or join clauses. *)
+
 end
 
 module StaticSchema : sig
@@ -1052,7 +1066,7 @@ module StaticSchema : sig
 
   val declare_table : t ->
     ?constraints:[`Table] Schema.constraint_ list ->
-    name:string -> 'a Schema.table -> table_name * 'a Expr.expr_list
+    name:string -> 'a Schema.table -> [ `TABLE ] table_ref * 'a Expr.expr_list
   (** [declare_table t ?constraints ~name table_spec]
       declares a new table on the schema [t] with the name
       [name].
@@ -1112,7 +1126,7 @@ module VersionedSchema : sig
     ?since:version ->
     ?constraints:[`Table] Schema.constraint_ list ->
     ?migrations:(version * migration list) list ->
-    name:string -> 'a Schema.table -> table_name * 'a Expr.expr_list
+    name:string -> 'a Schema.table -> [ `TABLE ] table_ref * 'a Expr.expr_list
   (** [declare_table t ?since ?constraints ?migrations ~name table_spec]
       declares a new table on the schema [t] with the name
       [name].

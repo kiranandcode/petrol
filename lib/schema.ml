@@ -1,4 +1,4 @@
-type table_name = Types.table_name
+type table_name = int * string
 
 type conflict_clause = [`ROLLBACK | `ABORT | `FAIL | `IGNORE | `REPLACE]
 type foreign_conflict_clause = [`SET_NULL | `SET_DEFAULT | `CASCADE | `RESTRICT | `NO_ACTION ]
@@ -23,7 +23,7 @@ type 'a sql_constraint =
   | ForeignKey of {
       local_columns: string list option;
       name: string option;
-      table: Types.table_name;
+      table: [ `TABLE ] Types.table_ref;
       columns: string list;
       on_update: foreign_conflict_clause option;
       on_delete: foreign_conflict_clause option;
@@ -116,7 +116,7 @@ let pp_sql_constraint fmt = function
            (pp_parens pp_column_list)
            vl)) local_columns
       (if Option.is_some name || Option.is_some local_columns then " " else "")
-      (snd table)
+      (Types.table_name table)
       (pp_parens pp_column_list) columns
       (pp_opt (fun fmt vl ->
          Format.fprintf fmt "ON UPDATE %a"
@@ -215,11 +215,11 @@ let table_unique ?name ?on_conflict columns : [`Table] sql_constraint =
     on_conflict;
   }
 
-let rec expr_list_to_column_names : 'a . Types.table_name -> 'a Expr.expr_list -> string list =
+let rec expr_list_to_column_names : 'a . string -> 'a Expr.expr_list -> string list =
   fun (type a) table_name (ls: a Types.expr_list) : string list ->
   match ls with
   | [] -> []
-  | Types.FIELD (table_name', name, _) :: t ->
+  | Types.FIELD {table_name = table_name'; name; _} :: t ->
     if not (table_name = table_name') then
       invalid_arg "foreign key constraint uses fields from a \
                    different table than the one specified";
@@ -229,21 +229,23 @@ let rec expr_list_to_column_names : 'a . Types.table_name -> 'a Expr.expr_list -
                  directly not derived expressions" 
 
 let foreign_key ?name ?on_update ?on_delete ~table ~columns () : [`Column] sql_constraint =
+  let table_name = Types.table_name table in
   ForeignKey {
     local_columns=None;
     name;
     table;
-    columns=expr_list_to_column_names table columns;
+    columns=expr_list_to_column_names table_name columns;
     on_update;
     on_delete;
   }
 
 let table_foreign_key ?name ?on_update ?on_delete ~table ~columns local_columns : [`Table] sql_constraint =
+  let table_name = Types.table_name table in
   ForeignKey {
     local_columns=Some local_columns;
     name;
     table;
-    columns=expr_list_to_column_names table columns;
+    columns=expr_list_to_column_names table_name columns;
     on_update;
     on_delete;
   }

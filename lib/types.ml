@@ -1,5 +1,3 @@
-type table_name = int * string
-
 type comparison = EQ | NEQ
                 | GT | GE
                 | LT | LE
@@ -30,23 +28,31 @@ let pp_opt f fmt = function
   | None -> ()
   | Some vl -> Format.fprintf fmt "\n%a" f vl
 
-type 'a field = table_name * string * 'a Type.t
+type 'a field = {
+  table_name : string;
+  name : string;
+  ty : 'a Type.t
+}
 
-type 'a expr_list =
+type 'kind table_ref =
+  | TABLE : string -> [`TABLE] table_ref
+  | SUBQUERY : string * ('a, 'b) query -> [`SUBQUERY] table_ref
+
+and 'a expr_list =
   | [] : unit expr_list
   | (::) : ('a expr * 'b expr_list) -> ('a * 'b) expr_list
 
 and 'a expr = .. 
 and wrapped_assign = ASSIGN : 'a field * 'a expr -> wrapped_assign
 and (_, !'res) query =
-    | SELECT_CORE : {
-      exprs: 'a expr_list;
-      table: table_name;
-      join: join list;
-      where: bool expr option;
-      group_by: 'b expr_list option;
-      having: bool expr option;
-    } -> ('a, [> `SELECT_CORE]) query
+  | SELECT_CORE : {
+    exprs: 'a expr_list;
+    table: [< `TABLE | `SUBQUERY] table_ref;
+    join: join list;
+    where: bool expr option;
+    group_by: 'b expr_list option;
+    having: bool expr option;
+  } -> ('a, [> `SELECT_CORE]) query
   | SELECT : {
       core: ('a, [< `SELECT_CORE ]) query;
       order_by: ([`ASC | `DESC] * 'e expr_list) option;
@@ -54,19 +60,19 @@ and (_, !'res) query =
       offset: int expr option
     } -> ('a, [> `SELECT]) query
   | DELETE : {
-    table: table_name;
+    table: [`TABLE] table_ref;
     where: bool expr option;
     returning: 'a expr_list;
   } -> ('a, [> `DELETE]) query
   | UPDATE : {
-    table: table_name;
+    table: [`TABLE] table_ref;
     on_err: [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] option;
     set: wrapped_assign list;
     where: bool expr option;
     returning : 'a expr_list;
   } -> ('a, [> `UPDATE]) query
   | INSERT : {
-    table: table_name;
+    table: [`TABLE] table_ref;
     on_err: [`ABORT | `FAIL | `IGNORE | `REPLACE | `ROLLBACK ] option;
     on_conflict: [`DO_NOTHING] option;
     set: wrapped_assign list;
@@ -74,10 +80,16 @@ and (_, !'res) query =
   } -> ('a, [> `INSERT]) query
 
 and join = MkJoin: {
-  table: ('r, [< `SELECT_CORE | `SELECT ]) query;
+  table: [< `TABLE | `SUBQUERY ] table_ref;
   on: bool expr;
   join_op: join_op;
 } -> join
+
+let table_name: 'a. 'a table_ref -> string =
+  fun (type a) (table_ref: a table_ref) : string ->
+  match table_ref with
+  | TABLE n -> n
+  | SUBQUERY (n, _) -> n
 
 let pp_opt_expr_list (type a) f fmt : a expr_list -> unit = function
   | [] -> ()
@@ -136,9 +148,8 @@ let () = add_printer @@ fun pp -> {
     | NULL _ -> Format.fprintf fmt "NULL"
     | CONST (_, _) -> Format.fprintf fmt "?"
     | CONST_STATIC (vl, ty) -> Type.pp_value ty fmt vl
-    | FIELD (table_name, field_name, _) ->
-      let table_name = snd table_name in
-      Format.fprintf fmt "%s.%s" table_name field_name
+    | FIELD {table_name; name; _} ->
+      Format.fprintf fmt "%s.%s" table_name name
     | COERCETO (expr, _) -> pp_expr fmt expr
     | REF (name,_) -> Format.fprintf fmt "%s" name
     | AS (expr, name) -> Format.fprintf fmt "%a AS %s" pp_expr expr name
@@ -164,7 +175,7 @@ let () = add_typer @@ fun typer -> {
     | NULL ty -> ty
     | CONST (_, ty) -> ty
     | CONST_STATIC (_, ty) -> ty
-    | FIELD (_, _, ty) -> ty
+    | FIELD {ty; _} -> ty
     | COERCETO (_, ty) -> ty
     | REF (_, ty) -> ty
     | AS (expr, _) -> ty_expr expr
@@ -207,9 +218,9 @@ and pp_query: 'a 'b. Format.formatter ->
   (match query with
    | SELECT_CORE { exprs; table; join; where; group_by; having } ->
      Format.fprintf fmt
-       "SELECT %a\nFROM %s%a%a%a%a"
+       "SELECT %a\nFROM %a%a%a%a%a"
        pp_expr_list exprs
-       (snd table)
+       pp_table_ref table
        pp_join_list join
        (pp_opt (fun fmt vl ->
           Format.fprintf fmt "WHERE %a" pp_expr vl))
@@ -236,8 +247,8 @@ and pp_query: 'a 'b. Format.formatter ->
           Format.fprintf fmt "OFFSET %a" pp_expr vl))
        offset
    | DELETE { table; where; returning } ->
-     Format.fprintf fmt "DELETE FROM %s%a%a"
-       (snd table)
+     Format.fprintf fmt "DELETE FROM %a%a%a"
+       pp_table_ref table
        (pp_opt (fun fmt vl ->
           Format.fprintf fmt "WHERE %a"
             pp_expr vl
@@ -245,9 +256,9 @@ and pp_query: 'a 'b. Format.formatter ->
        where
        pp_returning returning
    | UPDATE { table; on_err; set; where; returning } ->
-     Format.fprintf fmt "UPDATE%a %s\nSET %a%a%a"
+     Format.fprintf fmt "UPDATE%a %a\nSET %a%a%a"
        (pp_opt pp_on_err) on_err
-       (snd table)
+       pp_table_ref table
        (Format.pp_print_list ~pp_sep:(fun fmt () ->
           Format.fprintf fmt ", ") pp_wrapped_assign) set
        (pp_opt (fun fmt vl -> Format.fprintf fmt "WHERE %a" pp_expr vl))
@@ -257,11 +268,11 @@ and pp_query: 'a 'b. Format.formatter ->
      let pp_field : 'a . Format.formatter -> 'a expr -> unit =
        fun fmt (type a) (expr: a expr) : unit ->
          match expr with
-         | FIELD (_, field, _) -> Format.fprintf fmt "%s" field
+         | FIELD {name; _} -> Format.fprintf fmt "%s" name
          | _ -> Format.kasprintf failwith "expected field for INSERT query, got %a" pp_expr expr in
-     Format.fprintf fmt "INSERT%a INTO %s (%a) VALUES (%a)%a%a"
+     Format.fprintf fmt "INSERT%a INTO %a (%a) VALUES (%a)%a%a"
        (pp_opt pp_on_err) on_err
-       (snd table)
+       pp_table_ref table
        (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ", ")
           (fun fmt (ASSIGN (fld, _)) -> Format.fprintf fmt "%a" pp_field (FIELD fld)))
        set
@@ -271,28 +282,29 @@ and pp_query: 'a 'b. Format.formatter ->
        (pp_opt pp_on_conflict) on_conflict
        pp_returning returning
   )
-and pp_join : int -> Format.formatter -> join -> unit =
-  fun n fmt (MkJoin { table; on; join_op }) ->
-  Format.fprintf fmt "%a (%a) AS join_tmp_%d ON %a"
+and pp_join : Format.formatter -> join -> unit =
+  fun fmt (MkJoin { table; on; join_op }) ->
+  Format.fprintf fmt "%a %a ON %a"
     pp_join_op join_op
-    pp_query table n
+    pp_table_ref table
     pp_expr on
 and pp_join_list : Format.formatter -> join list -> unit =
   fun fmt ls ->
   match ls with
   | [] -> ()
   | h :: t ->
-    Format.fprintf fmt " %a%a" (pp_join 0) h (pp_join_list_inner 1) t
-and pp_join_list_inner : int -> Format.formatter -> join list -> unit =
-  fun n fmt ls ->
-  match ls with
-  | [] -> ()
-  | h :: t ->
-    Format.fprintf fmt " %a%a" (pp_join n) h (pp_join_list_inner (n + 1)) t
-
+    Format.fprintf fmt " %a%a" pp_join h pp_join_list t
 and pp_wrapped_assign: Format.formatter -> wrapped_assign -> unit =
-  fun fmt (ASSIGN ((_, field_name, _), expr)) ->
-  Format.fprintf fmt "%s = %a" field_name pp_expr expr
+  fun fmt (ASSIGN ({name; _}, expr)) ->
+  Format.fprintf fmt "%s = %a" name pp_expr expr
+
+and pp_table_ref: 'a. Format.formatter -> 'a table_ref -> unit =
+  fun (type a) fmt (table : a table_ref) ->
+  match table with
+  | TABLE name ->
+    Format.fprintf fmt "%s" name
+  | SUBQUERY (name, query) ->
+    Format.fprintf fmt "(\n%a) AS %s" pp_query query name
 
 let rec values_expr_list :
   'a . wrapped_value list -> 'a expr_list -> wrapped_value list =
@@ -306,9 +318,14 @@ and query_values : 'a 'b. wrapped_value list -> ('a,'b) query -> wrapped_value l
   | SELECT_CORE { exprs; table=_; join; where; group_by; having } ->
     let acc = values_expr_list acc exprs in
     let acc = List.fold_left (fun acc (MkJoin {table; on; join_op=_}) ->
-      let acc = query_values acc table in
-      let acc = values_expr acc on in
-      acc
+      match table with
+      | TABLE _ ->
+        let acc = values_expr acc on in
+        acc
+      | SUBQUERY (_, subquery) ->
+        let acc = query_values acc subquery in
+        let acc = values_expr acc on in
+        acc
     ) acc join in
     let acc = Option.map (values_expr acc) where |> Option.value ~default:acc in
     let acc = Option.map (values_expr_list acc) group_by |> Option.value ~default:acc in

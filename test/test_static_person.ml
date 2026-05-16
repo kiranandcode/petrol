@@ -116,7 +116,7 @@ let () =
       Lwt.return_ok ()
     |  "insert-random", _ ->
       let fname = Sys.argv.(2) in
-      let* conn = Caqti_lwt.connect (Uri.of_string ("sqlite3://:" ^ fname)) in
+      let* conn = Caqti_lwt_unix.connect (Uri.of_string ("sqlite3://:" ^ fname)) in
       let* _ = Petrol.StaticSchema.initialise db conn in
       let person = Person.random () in
       let* (pid, ()) = Person.Sql.insert person conn in

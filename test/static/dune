@@ -1,2 +1,2 @@
-(cram (deps ../test_static_person.exe)
- (enabled_if (= %{profile} test)))
+(cram
+ (deps ../test_static_person.exe ../test_static_pet.exe))

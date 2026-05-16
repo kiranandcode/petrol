@@ -9,7 +9,7 @@ module Type = struct
 end
 
 
-type table_name = Types.table_name
+type 'kind table_ref = 'kind Types.table_ref
 type ('ret_ty, 'query_kind) query = ('ret_ty, 'query_kind) Types.query
 
 
@@ -143,10 +143,10 @@ module StaticSchema = struct
         match table with
         | [] -> []
         | (field_name, field_ty, _) :: rest ->
-          ((Types.FIELD ((id, name), field_name,field_ty)) : _ Expr.t)
+          (Types.FIELD {table_name = name; name = field_name; ty = field_ty})
           :: to_table name rest in
     let table = to_table name tbl in
-    (id, name), table
+    Types.TABLE name, table
 
   let initialise tables (module DB: Caqti_lwt.CONNECTION) =
     let open Lwt_result.Syntax in
@@ -182,7 +182,7 @@ module VersionedSchema = struct
     tables: (int, wrapped_table) Hashtbl.t;
     migrations: (version * migration list) list;
     version_db: StaticSchema.t;
-    version_table_name: table_name;
+    version_table: [ `TABLE ] table_ref;
     version_table_field: string Expr.t;
   }
 
@@ -198,7 +198,7 @@ module VersionedSchema = struct
   let init ?(migrations=[]) version ~name =
     let migrations = order_by_version migrations in
     let version_db = StaticSchema.init () in
-    let version_table_name, Expr.[version_table_field] =
+    let version_table, Expr.[version_table_field] =
       StaticSchema.declare_table version_db ~name:("petrol_" ^ name ^ "_version_db") Schema.[
           field ~constraints:[primary_key (); not_null ()] "version" ~ty:Type.TEXT
         ] in
@@ -207,7 +207,7 @@ module VersionedSchema = struct
       tables=Hashtbl.create 10;
       migrations;
       version_db;
-      version_table_name; version_table_field;
+      version_table; version_table_field;
     }
 
   let declare_table t ?since ?(constraints : _ list =[]) ?(migrations=[]) ~name tbl =
@@ -220,10 +220,10 @@ module VersionedSchema = struct
         match table with
         | [] -> []
         | (field_name, field_ty, _) :: rest ->
-          ((Types.FIELD ((id, name), field_name,field_ty)) : _ Expr.t)
+          (Types.FIELD {table_name = name; name = field_name; ty = field_ty})
           :: to_table name rest in
     let table = to_table name tbl in
-    (id, name), table
+    Types.TABLE name, table
 
   let set_version t version con =
     let open Lwt_result.Syntax in
@@ -231,11 +231,11 @@ module VersionedSchema = struct
     let version_str = String.concat "." (List.map Int.to_string version) in
     let (module DB: Caqti_lwt.CONNECTION) = con in
     let* () =
-      Query.delete ~from:t.version_table_name
+      Query.delete ~from:t.version_table
       |> Request.make_zero
       |> exec con in
     let* () =
-      Query.insert ~table:t.version_table_name
+      Query.insert ~table:t.version_table
         ~values:Expr.Common.[t.version_table_field := s version_str]
       |> Request.make_zero
       |> exec con in
@@ -245,7 +245,7 @@ module VersionedSchema = struct
     let open Lwt_result.Syntax in
     let* () = StaticSchema.initialise t.version_db con in
     let* res =
-      Query.select Expr.[t.version_table_field] ~from:t.version_table_name
+      Query.select Expr.[t.version_table_field] ~from:t.version_table
       |> Request.make_zero_or_one
       |> find_opt con in
     match res with
