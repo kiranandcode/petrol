@@ -35,38 +35,38 @@ module Bookmark = struct
 
     val insert :
       t -> (module Caqti_lwt.CONNECTION) ->
-      (unit, [> Caqti_error.call_or_retrieve ]) Lwt_result.t
+      (unit, [> Caqti.Error.call_or_retrieve ]) Lwt_result.t
 
     val update_age :
       id:int ->
       age:int ->
       (module Caqti_lwt.CONNECTION) ->
-      (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+      (unit, [> Caqti.Error.call_or_retrieve ]) result Lwt.t
 
     val collect_all :
       (module Caqti_lwt.CONNECTION) ->
-      (t list, [> Caqti_error.call_or_retrieve ]) Lwt_result.t
+      (t list, [> Caqti.Error.call_or_retrieve ]) Lwt_result.t
 
     val collect_since :
       age:int ->
       (module Caqti_lwt.CONNECTION) ->
-      (t list, [> Caqti_error.call_or_retrieve ]) Lwt_result.t
+      (t list, [> Caqti.Error.call_or_retrieve ]) Lwt_result.t
 
     val add_tag :
       id:int ->
       tag:string ->
       (module Caqti_lwt.CONNECTION) ->
-      (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+      (unit, [> Caqti.Error.call_or_retrieve ]) result Lwt.t
 
     val clear_tags :
       id:int ->
       (module Caqti_lwt.CONNECTION) ->
-      (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+      (unit, [> Caqti.Error.call_or_retrieve ]) result Lwt.t
 
     val delete :
       id:int ->
       (module Caqti_lwt.CONNECTION) ->
-      (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+      (unit, [> Caqti.Error.call_or_retrieve ]) result Lwt.t
 
   end
 
@@ -124,7 +124,7 @@ module Bookmark = struct
           field "url" ~ty:Type.text;
         ]
         ~migrations:[v_1_2_0, [
-          Caqti_template.Create.direct Caqti_template.Type.(unit -->. unit)
+          Caqti.Templater.direct Caqti.Templater.T.(unit -->. unit)
             {sql|ALTER TABLE person ADD COLUMN age INTEGER DEFAULT 1000|sql}
         ]]
 
@@ -180,11 +180,11 @@ module Bookmark = struct
         ]
         ~migrations:[
           v_1_2_0, [
-            Caqti_template.Create.direct Caqti_template.Type.(unit -->. unit)
+            Caqti.Templater.direct Caqti.Templater.T.(unit -->. unit)
               {sql|ALTER TABLE person ADD COLUMN age INTEGER DEFAULT 1000|sql}
           ];
           v_2, [
-            Caqti_template.Create.direct Caqti_template.Type.(unit -->. unit)
+            Caqti.Templater.direct Caqti.Templater.T.(unit -->. unit)
               {sql|ALTER TABLE person ADD COLUMN name TEXT DEFAULT 'unnamed'|sql}
           ];
         ]

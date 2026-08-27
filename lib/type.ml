@@ -9,14 +9,14 @@ type 'a t =
   | TEXT : string t
   | BOOLEAN: bool t
   | CUSTOM : {
-      ty: 'a Caqti_template.Row_type.t;
+      ty: 'a Caqti.Template.Row_type.t;
       witness: 'a witness;
       eq_witness: 'a eq_witness;
       repr: string;
     } -> 'a t
 
-let custom : 'a . ty:'a Caqti_template.Row_type.t -> repr:string -> 'a t =
-  fun (type a) ~(ty:a Caqti_template.Row_type.t) ~repr : a t ->
+let custom : 'a . ty:'a Caqti.Template.Row_type.t -> repr:string -> 'a t =
+  fun (type a) ~(ty:a Caqti.Template.Row_type.t) ~repr : a t ->
   let module M = struct
     type _ witness += CUSTOM : a witness
     end in
@@ -47,7 +47,7 @@ end
 module Postgres = struct
 
   type 'a witness += BIGINT : int64 witness
-  let big_int = CUSTOM { ty = Caqti_template.Row_type.int64; repr = "BIGINT"; witness=BIGINT;
+  let big_int = CUSTOM { ty = Caqti.Template.Row_type.int64; repr = "BIGINT"; witness=BIGINT;
                          eq_witness={eq=
                                        fun (type b) (witness: b witness) : (int64, b) eq option ->
                                          match witness with
@@ -56,68 +56,68 @@ module Postgres = struct
                                     }}
 
   type 'a witness += BIGSERIAL : int64 witness
-  let big_serial = CUSTOM { ty = Caqti_template.Row_type.int64; repr = "BIGSERIAL"; witness=BIGSERIAL;
+  let big_serial = CUSTOM { ty = Caqti.Template.Row_type.int64; repr = "BIGSERIAL"; witness=BIGSERIAL;
                             eq_witness={eq=fun (type b) (witness: b witness) : (int64, b) eq option ->
                               match witness with
                               | BIGSERIAL -> Some Refl
                               | _ -> None}}
   type 'a witness += BYTEA : string witness
-  let bytea  = CUSTOM { ty = Caqti_template.Row_type.octets; repr = "BYTEA"; witness=BYTEA;
+  let bytea  = CUSTOM { ty = Caqti.Template.Row_type.octets; repr = "BYTEA"; witness=BYTEA;
                         eq_witness={eq=fun (type b) (witness: b witness) : (string, b) eq option ->
                           match witness with
                           | BYTEA -> Some Refl
                           | _ -> None}}
 
   type 'a witness += CHARACTER : int -> string witness
-  let character (n: int) = CUSTOM { ty = Caqti_template.Row_type.string; repr = Format.sprintf "CHARACTER(%d)" n; witness=CHARACTER n;
+  let character (n: int) = CUSTOM { ty = Caqti.Template.Row_type.string; repr = Format.sprintf "CHARACTER(%d)" n; witness=CHARACTER n;
                                     eq_witness={eq=fun (type b) (witness: b witness) : (string, b) eq option ->
                                       match witness with
                                       | CHARACTER n' when n = n' -> Some Refl
                                       | _ -> None}}
   type 'a witness += CHARACTER_VARYING : int -> string witness
-  let character_varying n = CUSTOM { ty = Caqti_template.Row_type.string; repr = Format.sprintf "CHARACTER VARYING(%d)" n; witness=CHARACTER_VARYING n;
+  let character_varying n = CUSTOM { ty = Caqti.Template.Row_type.string; repr = Format.sprintf "CHARACTER VARYING(%d)" n; witness=CHARACTER_VARYING n;
                                      eq_witness={eq=fun (type b) (witness: b witness) : (string, b) eq option ->
                                        match witness with
                                        | CHARACTER_VARYING n' when n = n' -> Some Refl
                                        | _ -> None}}
 
   type 'a witness += DATE : Ptime.t witness
-  let date = CUSTOM { ty = Caqti_template.Row_type.pdate; repr = "DATE"; witness=DATE;
+  let date = CUSTOM { ty = Caqti.Template.Row_type.pdate; repr = "DATE"; witness=DATE;
                       eq_witness={eq=fun (type b) (witness: b witness) : (Ptime.t, b) eq option ->
                         match witness with
                         | DATE -> Some Refl
                         | _ -> None}}
 
   type 'a witness += DOUBLE_PRECISION : float witness
-  let double_precision = CUSTOM { ty = Caqti_template.Row_type.float; repr = "DOUBLE PRECISION"; witness=DOUBLE_PRECISION;
+  let double_precision = CUSTOM { ty = Caqti.Template.Row_type.float; repr = "DOUBLE PRECISION"; witness=DOUBLE_PRECISION;
                                   eq_witness={eq=fun (type b) (witness: b witness) : (float, b) eq option ->
                                     match witness with
                                     | DOUBLE_PRECISION -> Some Refl
                                     | _ -> None}}
 
   type 'a witness += INT4 : int32 witness
-  let int4 = CUSTOM { ty = Caqti_template.Row_type.int32; repr = "INT4"; witness=INT4;
+  let int4 = CUSTOM { ty = Caqti.Template.Row_type.int32; repr = "INT4"; witness=INT4;
                       eq_witness={eq=fun (type b) (witness: b witness) : (int32, b) eq option ->
                         match witness with
                         | INT4 -> Some Refl
                         | _ -> None}}
 
   type 'a witness += SMALLINT : int witness
-  let smallint = CUSTOM { ty = Caqti_template.Row_type.int16; repr = "SMALLINT" ; witness=SMALLINT;
+  let smallint = CUSTOM { ty = Caqti.Template.Row_type.int16; repr = "SMALLINT" ; witness=SMALLINT;
                           eq_witness={eq=fun (type b) (witness: b witness) : (int, b) eq option ->
                             match witness with
                             | SMALLINT -> Some Refl
                             | _ -> None}}
 
   type 'a witness += SMALLSERIAL : int witness
-  let smallserial = CUSTOM { ty = Caqti_template.Row_type.int16; repr = "SMALLSERIAL";witness=SMALLSERIAL;
+  let smallserial = CUSTOM { ty = Caqti.Template.Row_type.int16; repr = "SMALLSERIAL";witness=SMALLSERIAL;
                              eq_witness={eq=fun (type b) (witness: b witness) : (int, b) eq option ->
                                match witness with
                                | SMALLSERIAL -> Some Refl
                                | _ -> None}}
 
   type 'a witness += TIME : Ptime.t witness
-  let time = CUSTOM { ty = Caqti_template.Row_type.ptime; repr = "TIME"; witness=TIME;
+  let time = CUSTOM { ty = Caqti.Template.Row_type.ptime; repr = "TIME"; witness=TIME;
                       eq_witness={eq=fun (type b) (witness: b witness) : (Ptime.t, b) eq option ->
                         match witness with
                         | TIME -> Some Refl
@@ -128,7 +128,7 @@ end
 module Sqlite3 = struct
 
   type 'a witness += BLOB: string witness
-  let blob = CUSTOM { ty = Caqti_template.Row_type.string; repr = "BLOB"; witness=BLOB;
+  let blob = CUSTOM { ty = Caqti.Template.Row_type.string; repr = "BLOB"; witness=BLOB;
                       eq_witness={eq=fun (type b) (witness: b witness) : (string, b) eq option ->
                         match witness with
                         | BLOB -> Some Refl
@@ -151,22 +151,22 @@ let null_ty : 'a . 'a t -> 'a option t =
   | CUSTOM def -> NULLABLE (CUSTOM def)
   | NULLABLE _ -> invalid_arg "already a nullable type"
 
-let rec ty_to_caqti_ty: 'a . 'a t -> 'a Caqti_template.Row_type.t =
-  fun (type a) (ty: a t) : a Caqti_template.Row_type.t ->
+let rec ty_to_caqti_ty: 'a . 'a t -> 'a Caqti.Template.Row_type.t =
+  fun (type a) (ty: a t) : a Caqti.Template.Row_type.t ->
   match ty with
-  | INTEGER -> Caqti_template.Row_type.int
-  | BOOLEAN -> Caqti_template.Row_type.bool
-  | REAL -> Caqti_template.Row_type.float
-  | TEXT -> Caqti_template.Row_type.string
+  | INTEGER -> Caqti.Template.Row_type.int
+  | BOOLEAN -> Caqti.Template.Row_type.bool
+  | REAL -> Caqti.Template.Row_type.float
+  | TEXT -> Caqti.Template.Row_type.string
   | CUSTOM {ty;_} -> ty
-  | NULLABLE ty -> Caqti_template.Row_type.option (ty_to_caqti_ty ty)
+  | NULLABLE ty -> Caqti.Template.Row_type.option (ty_to_caqti_ty ty)
 
-let rec ty_list_to_caqti_ty: 'a . 'a ty_list -> 'a Caqti_template.Row_type.t =
-  fun (type a) (ls: a ty_list) : a Caqti_template.Row_type.t ->
+let rec ty_list_to_caqti_ty: 'a . 'a ty_list -> 'a Caqti.Template.Row_type.t =
+  fun (type a) (ls: a ty_list) : a Caqti.Template.Row_type.t ->
   match ls with
-  | Nil -> Caqti_template.Row_type.unit
+  | Nil -> Caqti.Template.Row_type.unit
   | Cons (h, t) ->
-    Caqti_template.Row_type.t2 (ty_to_caqti_ty h) (ty_list_to_caqti_ty t)
+    Caqti.Template.Row_type.t2 (ty_to_caqti_ty h) (ty_list_to_caqti_ty t)
 
 let rec eq_ty: 'a 'b . 'a t * 'b t -> ('a,'b) eq option =
   fun (type a b) ((e1,e2): a t * b t) : (a,b) eq option ->
@@ -224,7 +224,7 @@ let rec pp_value : 'a . 'a t -> Format.formatter -> 'a -> unit =  fun (type a) (
       Buffer.contents buf
     in
     Format.fprintf fmt "%s" (quote_and_escape vl)
-  | CUSTOM {ty;_} -> Caqti_template.Row.pp ty fmt vl
+  | CUSTOM {ty;_} -> Caqti.Template.Row.pp ty fmt vl
   | NULLABLE ty ->
     match vl with
     | None -> Format.fprintf fmt "NULL"

@@ -46,13 +46,13 @@ module Type : sig
   val pp: Format.formatter -> 'a t -> unit
   val show : 'a t -> string
 
-  val custom : ty:'a Caqti_template.Row_type.t -> repr:string -> 'a t
+  val custom : ty:'a Caqti.Template.Row_type.t -> repr:string -> 'a t
   (** [custom ~ty ~repr] creates a new SQL type that is represented by
       the Caqti type [ty], and is represented in a SQL query as [repr].
 
       For example, you might define the BOOL datatype as follows:
       {[
-        let bool = Type.custom ~ty:Caqti_template.Row_type.bool ~repr:"BOOLEAN"
+        let bool = Type.custom ~ty:Caqti.Template.Row_type.bool ~repr:"BOOLEAN"
       ]}
 
       {b Note} Petrol doesn't implement the boolean type using this
@@ -1076,7 +1076,7 @@ module StaticSchema : sig
 
 
   val initialise : t -> (module Caqti_lwt.CONNECTION) ->
-    (unit, [> Caqti_error.t ]) Lwt_result.t
+    (unit, [> Caqti.Error.t ]) Lwt_result.t
     (** [initialise t conn] initialises the SQL schema on [conn]. *)
 
 end
@@ -1096,7 +1096,7 @@ module VersionedSchema : sig
   type version = private int list
   (** Lexiographically ordered schema version numbers  *)
 
-  type migration = (unit, unit, [`Zero]) Caqti_template.Request.t
+  type migration = (unit, unit, [`Zero]) Caqti.Template.Request.t
   (** Represents SQL statements required to update the schema over
       versions. *)
 
@@ -1144,7 +1144,7 @@ module VersionedSchema : sig
       is irrelevant.  *)
 
   val migrations_needed : t -> (module Caqti_lwt.CONNECTION) ->
-    (bool, [> Caqti_error.t  | `Newer_version_than_supported of version ]) Lwt_result.t
+    (bool, [> Caqti.Error.t  | `Newer_version_than_supported of version ]) Lwt_result.t
   (** [migrations_needed t conn] returns a boolean indicating whether
       the current version on the SQL database will require migrations
       -- i.e whether running {!initialise} will run migrations.
@@ -1156,7 +1156,7 @@ module VersionedSchema : sig
       [petrol_<schema_name>_version_db] in the database. *)
 
   val initialise : t -> (module Caqti_lwt.CONNECTION) ->
-    (unit, [> Caqti_error.t | `Newer_version_than_supported of version ]) Lwt_result.t
+    (unit, [> Caqti.Error.t | `Newer_version_than_supported of version ]) Lwt_result.t
     (** [initialise t conn] initialises the SQL database on [conn],
         performing any necessary migrations if needed.
 
@@ -1169,24 +1169,24 @@ module VersionedSchema : sig
 end
 
 val exec : (module Caqti_lwt.CONNECTION) -> (unit, [< `Zero ]) request ->
-  (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+  (unit, [> Caqti.Error.call_or_retrieve ]) result Lwt.t
 (** [exec db req] executes a unit SQL request [req] on the SQL
     database [db].  *)
 
 val find : (module Caqti_lwt.CONNECTION) -> ('a, [< `One ]) request ->
-  ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+  ('a, [> Caqti.Error.call_or_retrieve ]) result Lwt.t
 (** [find db req] executes a singleton SQL request [req] on the SQL
     database [db] returning the result.  *)
 
 val find_opt : (module Caqti_lwt.CONNECTION) ->
   ('a, [< `One | `Zero ]) request ->
-  ('a option, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+  ('a option, [> Caqti.Error.call_or_retrieve ]) result Lwt.t
 (** [find_opt db req] executes a zero-or-one SQL request [req] on the SQL
     database [db] returning the result if it exists.  *)
 
 val collect_list :
   (module Caqti_lwt.CONNECTION) ->
   ('a, [< `Many | `One | `Zero ]) request ->
-  ('a list, [> Caqti_error.call_or_retrieve ]) result Lwt.t
+  ('a list, [> Caqti.Error.call_or_retrieve ]) result Lwt.t
 (** [collect_list db req] executes a SQL request [req] on the SQL
     database [db] and collects the results into a list.  *)

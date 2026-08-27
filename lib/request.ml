@@ -1,5 +1,5 @@
 type ('res, !'multiplicity) caqti_request_inner =
-    MkCaqti:'input Type.ty_list * ('input, 'res, 'multiplicity) Caqti_template.Request.t ->
+    MkCaqti:'input Type.ty_list * ('input, 'res, 'multiplicity) Caqti.Template.Request.t ->
       ('res, 'multiplicity) caqti_request_inner
 
 type ('res, !'multiplicity) t =
@@ -54,15 +54,15 @@ let cache_many : (string, [ `Many | `Zero | `One ] QueryMap.t) Hashtbl.t = Hasht
 
 let make_zero : 'b . (unit,'b) Query.t -> (unit, [`Zero]) t =
   fun (type b) (query: (unit,b) Query.t) : (unit, [`Zero]) t ->
-  let query_repr = Caqti_template.Query.parse (Format.asprintf "%a" Query.pp query) in
+  let query_repr = Caqti.Template.Query.parse (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
   let request_type =
-    Caqti_template.Type.(
-      Type.ty_list_to_caqti_ty query_value_ty -->. Caqti_template.Row_type.unit)
+    Caqti.Template.Request_type.Infix.(
+      Type.ty_list_to_caqti_ty query_value_ty -->. Caqti.Template.Row_type.unit)
   in
   let request =
-    Caqti_template.Request.create Caqti_template.Request.Static request_type
+    Caqti.Template.Request.create Caqti.Template.Request.Static request_type
       (fun _ -> query_repr)
   in
   MkCaqti (query_value_ty,request), query_values
@@ -85,17 +85,17 @@ let make_zero : 'b . (unit,'b) Query.t -> (unit, [`Zero]) t =
 
 let make_one : 'a 'b . ('a,'b) Query.t -> ('a, [`One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`One]) t ->
-  let query_repr = Caqti_template.Query.parse (Format.asprintf "%a" Query.pp query) in
+  let query_repr = Caqti.Template.Query.parse (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
   let ret_ty = Query.query_ret_ty query in
   let request_type =
-    Caqti_template.Type.(
+    Caqti.Template.Request_type.Infix.(
       Type.ty_list_to_caqti_ty query_value_ty -->!
       Type.ty_list_to_caqti_ty ret_ty)
   in
   let request =
-    Caqti_template.Request.create Caqti_template.Request.Static request_type
+    Caqti.Template.Request.create Caqti.Template.Request.Static request_type
       (fun _ -> query_repr)
   in
   MkCaqti (query_value_ty,request), query_values
@@ -118,17 +118,17 @@ let make_one : 'a 'b . ('a,'b) Query.t -> ('a, [`One]) t =
 
 let make_zero_or_one : 'a 'b . ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`Zero | `One]) t ->
-  let query_repr = Caqti_template.Query.parse (Format.asprintf "%a" Query.pp query) in
+  let query_repr = Caqti.Template.Query.parse (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
   let ret_ty = Query.query_ret_ty query in
   let request_type =
-    Caqti_template.Type.(
+    Caqti.Template.Request_type.Infix.(
       Type.ty_list_to_caqti_ty query_value_ty -->?
       Type.ty_list_to_caqti_ty ret_ty)
   in
   let request =
-    Caqti_template.Request.create Caqti_template.Request.Static request_type
+    Caqti.Template.Request.create Caqti.Template.Request.Static request_type
       (fun _ -> query_repr)
   in
   MkCaqti (query_value_ty,request), query_values
@@ -151,17 +151,17 @@ let make_zero_or_one : 'a 'b . ('a,'b) Query.t -> ('a, [`Zero | `One]) t =
 
 let make_many : 'a 'b . ('a,'b) Query.t -> ('a, [`Many | `Zero | `One]) t =
   fun (type a b) (query: (a,b) Query.t) : (a, [`Many | `Zero | `One]) t ->
-  let query_repr = Caqti_template.Query.parse (Format.asprintf "%a" Query.pp query) in
+  let query_repr = Caqti.Template.Query.parse (Format.asprintf "%a" Query.pp query) in
   let query_values = Query.query_values query in
   let (MkWrappedTyList query_value_ty) = extract_ty_list query_values in
   let ret_ty = Query.query_ret_ty query in
   let request_type =
-    Caqti_template.Type.(
+    Caqti.Template.Request_type.Infix.(
       Type.ty_list_to_caqti_ty query_value_ty -->*
       Type.ty_list_to_caqti_ty ret_ty)
   in
   let request =
-    Caqti_template.Request.create Caqti_template.Request.Static request_type
+    Caqti.Template.Request.create Caqti.Template.Request.Static request_type
       (fun _ -> query_repr)
   in
   MkCaqti (query_value_ty,request), query_values

@@ -1,5 +1,4 @@
 (library
  (name petrol)
  (public_name petrol)
- (flags (:standard -alert -caqti_unstable))
- (libraries caqti.template caqti-lwt))
+ (libraries caqti caqti-lwt))

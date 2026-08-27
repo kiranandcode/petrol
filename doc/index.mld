@@ -178,7 +178,7 @@ let t, Expr.[id;age;url] =
        field "url" ~ty:Type.text;
      ]
      ~migrations:[v_1_2_0, [
-       Caqti_template.Create.direct Caqti_template.Type.(unit -->. unit)
+       Caqti.Templater.direct Caqti.Templater.T.(unit -->. unit)
          {sql|ALTER TABLE person ADD COLUMN age INTEGER DEFAULT 1000|sql}
      ]]
 ]}
