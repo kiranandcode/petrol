@@ -8,10 +8,11 @@
   test_postgres_versioned_bookmark)
  (modules
   (:standard \ "test_utils"))
+ (flags (:standard -alert -caqti_unstable))
  (libraries
   test_utils
   petrol
-  caqti
+  caqti.template
   caqti-lwt.unix
   caqti-driver-sqlite3
   caqti-driver-postgresql))
@@ -19,9 +20,10 @@
 (library
  (name test_utils)
  (modules "test_utils")
+ (flags (:standard -alert -caqti_unstable))
  (libraries
   petrol
-  caqti
+  caqti.template
   caqti-lwt.unix
   caqti-driver-sqlite3
   caqti-driver-postgresql))

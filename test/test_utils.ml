@@ -31,12 +31,14 @@ let main_postgres f =
     match[@warning "-8"] args with
     | ["createdb"; name] ->
       let* (module DB) = Caqti_lwt_unix.connect (Uri.of_string "postgresql://") in
-      Lwt.bind (DB.exec (Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
+      Lwt.bind (DB.exec (Caqti_template.Create.direct
+                           Caqti_template.Type.(unit -->. unit)
                            (Format.sprintf {sql| CREATE DATABASE %s |sql} name)) ()) @@ 
       fun err -> Lwt.bind (DB.disconnect ()) @@ fun () -> Lwt.return err
     | ["dropdb"; name] ->
       let* (module DB) = Caqti_lwt_unix.connect (Uri.of_string "postgresql://") in
-      Lwt.bind (DB.exec (Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
+      Lwt.bind (DB.exec (Caqti_template.Create.direct
+                           Caqti_template.Type.(unit -->. unit)
                            (Format.sprintf {sql| DROP DATABASE IF EXISTS %s WITH (FORCE) |sql} name)) ()) @@
       fun err -> Lwt.bind (DB.disconnect ()) @@ fun () -> Lwt.return err
     | name :: args ->

@@ -46,13 +46,13 @@ module Type : sig
   val pp: Format.formatter -> 'a t -> unit
   val show : 'a t -> string
 
-  val custom : ty:'a Caqti_type.t -> repr:string -> 'a t
+  val custom : ty:'a Caqti_template.Row_type.t -> repr:string -> 'a t
   (** [custom ~ty ~repr] creates a new SQL type that is represented by
       the Caqti type [ty], and is represented in a SQL query as [repr].
 
       For example, you might define the BOOL datatype as follows:
       {[
-        let bool = Type.custom ~ty:Caqti_type.bool ~repr:"BOOLEAN"
+        let bool = Type.custom ~ty:Caqti_template.Row_type.bool ~repr:"BOOLEAN"
       ]}
 
       {b Note} Petrol doesn't implement the boolean type using this
@@ -1096,7 +1096,7 @@ module VersionedSchema : sig
   type version = private int list
   (** Lexiographically ordered schema version numbers  *)
 
-  type migration = (unit, unit, [`Zero]) Caqti_request.t
+  type migration = (unit, unit, [`Zero]) Caqti_template.Request.t
   (** Represents SQL statements required to update the schema over
       versions. *)
 

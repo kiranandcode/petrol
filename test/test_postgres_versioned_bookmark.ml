@@ -124,7 +124,7 @@ module Bookmark = struct
           field "url" ~ty:Type.text;
         ]
         ~migrations:[v_1_2_0, [
-          Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
+          Caqti_template.Create.direct Caqti_template.Type.(unit -->. unit)
             {sql|ALTER TABLE person ADD COLUMN age INTEGER DEFAULT 1000|sql}
         ]]
 
@@ -180,11 +180,11 @@ module Bookmark = struct
         ]
         ~migrations:[
           v_1_2_0, [
-            Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
+            Caqti_template.Create.direct Caqti_template.Type.(unit -->. unit)
               {sql|ALTER TABLE person ADD COLUMN age INTEGER DEFAULT 1000|sql}
           ];
           v_2, [
-            Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
+            Caqti_template.Create.direct Caqti_template.Type.(unit -->. unit)
               {sql|ALTER TABLE person ADD COLUMN name TEXT DEFAULT 'unnamed'|sql}
           ];
         ]

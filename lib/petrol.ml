@@ -157,7 +157,10 @@ module StaticSchema = struct
         ) tables ([]: 'a list) in
     let* () = 
       Lwt_list.map_s (fun table_def ->
-          let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
+          let req =
+            Caqti_template.Create.direct
+              Caqti_template.Type.(unit -->. unit) table_def
+          in
           DB.exec req ()
         ) table_defs
       |> Lwt.map result_all_unit in
@@ -170,7 +173,7 @@ module VersionedSchema = struct
 
   type version = int list
 
-  type migration = (unit, unit, [`Zero]) Caqti_request.t
+  type migration = (unit, unit, [`Zero]) Caqti_template.Request.t
 
   type wrapped_table =
       MkTable : int * string * version option *
@@ -280,7 +283,10 @@ module VersionedSchema = struct
       (* execute them *)
       let* () = 
         Lwt_list.map_s (fun (_, table_def) ->
-            let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
+            let req =
+              Caqti_template.Create.direct
+                Caqti_template.Type.(unit -->. unit) table_def
+            in
             DB.exec req ()
           ) table_defs
         |> Lwt.map result_all_unit in
@@ -300,7 +306,10 @@ module VersionedSchema = struct
               match since with
               | Some since when compare_version current_version since < 0 ->
                 let table_def = Schema.to_sql ~name table constraints in
-                let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
+                let req =
+                  Caqti_template.Create.direct
+                    Caqti_template.Type.(unit -->. unit) table_def
+                in
                 DB.exec req ()
               | _ ->
                 (* if since is not present, or current version is
