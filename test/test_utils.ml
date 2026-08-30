@@ -5,7 +5,7 @@ let run expr =
   | Ok _ -> ()
   | Error (`Newer_version_than_supported _) ->
     failwith ("Attempted to use a newer database than supported")
-  | Error (#Caqti_error.t as err) -> failwith ((Caqti_error.show err))
+  | Error (#Caqti.Error.t as err) -> failwith ((Caqti.Error.show err))
   | Error (`Msg m) -> failwith m
 
 let main f =
@@ -25,18 +25,20 @@ let main f =
   end
 
 let main_postgres f =
-  let (let*) x f = Lwt.bind x (function Error err -> failwith (Caqti_error.show err) | Ok v -> f v) in
+  let (let*) x f = Lwt.bind x (function Error err -> failwith (Caqti.Error.show err) | Ok v -> f v) in
   run @@ begin
     let args = List.init (Array.length Sys.argv - 1) (fun ind -> Sys.argv.(1 + ind)) in
     match[@warning "-8"] args with
     | ["createdb"; name] ->
       let* (module DB) = Caqti_lwt_unix.connect (Uri.of_string "postgresql://") in
-      Lwt.bind (DB.exec (Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
+      Lwt.bind (DB.exec (Caqti.Templater.direct
+                           Caqti.Templater.T.(unit -->. unit)
                            (Format.sprintf {sql| CREATE DATABASE %s |sql} name)) ()) @@ 
       fun err -> Lwt.bind (DB.disconnect ()) @@ fun () -> Lwt.return err
     | ["dropdb"; name] ->
       let* (module DB) = Caqti_lwt_unix.connect (Uri.of_string "postgresql://") in
-      Lwt.bind (DB.exec (Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit)
+      Lwt.bind (DB.exec (Caqti.Templater.direct
+                           Caqti.Templater.T.(unit -->. unit)
                            (Format.sprintf {sql| DROP DATABASE IF EXISTS %s WITH (FORCE) |sql} name)) ()) @@
       fun err -> Lwt.bind (DB.disconnect ()) @@ fun () -> Lwt.return err
     | name :: args ->

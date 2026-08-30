@@ -1,5 +1,5 @@
 
-let (let*) x f = Lwt.bind x (function Error err -> failwith (Caqti_error.show err) | Ok v -> f v)
+let (let*) x f = Lwt.bind x (function Error err -> failwith (Caqti.Error.show err) | Ok v -> f v)
 
 let db = Petrol.StaticSchema.init ()
 

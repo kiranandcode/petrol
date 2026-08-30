@@ -102,25 +102,25 @@ let rec drop_while ~f ls =
   | ls -> ls
 
 let exec : (module Caqti_lwt.CONNECTION) ->
-  (unit,[< `Zero ]) Request.t -> (unit, [> Caqti_error.call_or_retrieve ]) result Lwt.t =
+  (unit,[< `Zero ]) Request.t -> (unit, [> Caqti.Error.call_or_retrieve ]) result Lwt.t =
   fun (module DB: Caqti_lwt.CONNECTION) ((MkCaqti (inps,req),wrapp_value): (unit,_) Request.t) ->
   let data = Request.unwrap (inps,wrapp_value) in
   DB.exec req data
 
 let find : 'a . (module Caqti_lwt.CONNECTION) ->
-  ('a,[< `One ]) Request.t -> ('a, [> Caqti_error.call_or_retrieve ]) result Lwt.t =
+  ('a,[< `One ]) Request.t -> ('a, [> Caqti.Error.call_or_retrieve ]) result Lwt.t =
   fun (module DB: Caqti_lwt.CONNECTION) (type a) ((MkCaqti (inps,req),wrapp_value): (a,_) Request.t) ->
   let data = Request.unwrap (inps,wrapp_value) in
   DB.find req data
 
 let find_opt : 'a . (module Caqti_lwt.CONNECTION) ->
-  ('a,[< `One | `Zero ]) Request.t -> ('a option, [> Caqti_error.call_or_retrieve ]) result Lwt.t =
+  ('a,[< `One | `Zero ]) Request.t -> ('a option, [> Caqti.Error.call_or_retrieve ]) result Lwt.t =
   fun (module DB: Caqti_lwt.CONNECTION) (type a) ((MkCaqti (inps,req),wrapp_value): (a,_) Request.t) ->
   let data = Request.unwrap (inps,wrapp_value) in
   DB.find_opt req data
 
 let collect_list : 'a . (module Caqti_lwt.CONNECTION) ->
-  ('a,[< `Many | `One | `Zero ]) Request.t -> ('a list, [> Caqti_error.call_or_retrieve ]) result Lwt.t =
+  ('a,[< `Many | `One | `Zero ]) Request.t -> ('a list, [> Caqti.Error.call_or_retrieve ]) result Lwt.t =
   fun (module DB: Caqti_lwt.CONNECTION) (type a) ((MkCaqti (inps,req),wrapp_value): (a,_) Request.t) ->
   let data = Request.unwrap (inps,wrapp_value) in
   DB.collect_list req data
@@ -157,7 +157,10 @@ module StaticSchema = struct
         ) tables ([]: 'a list) in
     let* () = 
       Lwt_list.map_s (fun table_def ->
-          let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
+          let req =
+            Caqti.Templater.direct
+              Caqti.Templater.T.(unit -->. unit) table_def
+          in
           DB.exec req ()
         ) table_defs
       |> Lwt.map result_all_unit in
@@ -170,7 +173,7 @@ module VersionedSchema = struct
 
   type version = int list
 
-  type migration = (unit, unit, [`Zero]) Caqti_request.t
+  type migration = (unit, unit, [`Zero]) Caqti.Template.Request.t
 
   type wrapped_table =
       MkTable : int * string * version option *
@@ -280,7 +283,10 @@ module VersionedSchema = struct
       (* execute them *)
       let* () = 
         Lwt_list.map_s (fun (_, table_def) ->
-            let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
+            let req =
+              Caqti.Templater.direct
+                Caqti.Templater.T.(unit -->. unit) table_def
+            in
             DB.exec req ()
           ) table_defs
         |> Lwt.map result_all_unit in
@@ -300,7 +306,10 @@ module VersionedSchema = struct
               match since with
               | Some since when compare_version current_version since < 0 ->
                 let table_def = Schema.to_sql ~name table constraints in
-                let req = Caqti_request.Infix.(Caqti_type.unit ->. Caqti_type.unit) table_def in
+                let req =
+                  Caqti.Templater.direct
+                    Caqti.Templater.T.(unit -->. unit) table_def
+                in
                 DB.exec req ()
               | _ ->
                 (* if since is not present, or current version is
